@@ -1,2 +1,8 @@
-// TODO: Implement system tray using tray-icon crate
-// Phase 1 stub - will be integrated with the main app
+// 系统托盘模块
+// 提供系统托盘图标和右键菜单功能
+// Phase 1 占位实现，后续将集成 tray-icon crate
+
+// TODO: 使用 tray-icon crate 实现完整的托盘功能
+// - 显示托盘图标
+// - 右键菜单（显示/隐藏、设置、退出）
+// - 左键单击显示主窗口

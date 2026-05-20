@@ -1,8 +1,13 @@
+// LLM 客户端模块
+// 调用 Anthropic API 生成脚本
+
 use crate::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+/// AI 返回的脚本结构（JSON schema）
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GeneratedScript {
     pub name: String,
@@ -13,6 +18,45 @@ pub struct GeneratedScript {
     pub params: Vec<ParamDeclaration>,
 }
 
+/// 工具的 JSON Schema（静态初始化，避免每次请求重建）
+static TOOL_SCHEMA: Lazy<serde_json::Value> = Lazy::new(|| {
+    json!({
+        "type": "object",
+        "properties": {
+            "name": { "type": "string", "description": "脚本名称" },
+            "description": { "type": "string", "description": "脚本用途描述，用于后续语义匹配" },
+            "content": { "type": "string", "description": "完整脚本内容" },
+            "runtime": { "type": "string", "enum": ["python_pep723", "shell"], "description": "脚本运行方式" },
+            "shell_target": { "type": ["string", "null"], "enum": ["bash", "pwsh", "sh", null], "description": "shell 时的目标解释器" },
+            "params": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "label": { "type": "string" },
+                        "widget": {
+                            "type": "object",
+                            "properties": {
+                                "type": { "type": "string", "enum": ["text", "secret", "file", "directory", "select", "number", "toggle", "textarea"] }
+                            },
+                            "required": ["type"]
+                        },
+                        "required": { "type": "boolean" },
+                        "description": { "type": ["string", "null"] },
+                        "default": { "type": ["string", "null"] }
+                    },
+                    "required": ["name", "label", "widget", "required"]
+                }
+            }
+        },
+        "required": ["name", "description", "content", "runtime", "params"]
+    })
+});
+
+const MAX_TOKENS: u32 = 4096; // 最大生成 token 数
+
+/// LLM 客户端
 pub struct LlmClient {
     api_key: String,
     model: String,
@@ -21,15 +65,23 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
+    /// 创建客户端
+    /// api_base 自动去除尾随斜杠
     pub fn new(api_key: String, model: String, api_base: Option<String>) -> Self {
+        let api_base = api_base
+            .unwrap_or_else(|| "https://api.anthropic.com".to_string());
+        let api_base = api_base.trim_end_matches('/').to_string();
+
         Self {
             api_key,
             model,
-            api_base: api_base.unwrap_or_else(|| "https://api.anthropic.com".to_string()),
+            api_base,
             http: reqwest::Client::new(),
         }
     }
 
+    /// 构建 System Prompt
+    /// 包含平台信息、脚本规范、uv 工具摘要、执行上下文
     pub fn build_system_prompt(
         &self,
         uv_tools_summary: &str,
@@ -93,47 +145,17 @@ Shell 脚本参数读取: {shell_syntax}
         )
     }
 
+    /// 调用 LLM 生成脚本
+    /// 使用 Anthropic Messages API + tool_use 强制结构化输出
     pub async fn generate_script(
         &self,
         user_input: &str,
         system_prompt: &str,
     ) -> Result<GeneratedScript> {
-        let tool_schema = json!({
-            "type": "object",
-            "properties": {
-                "name": { "type": "string", "description": "脚本名称" },
-                "description": { "type": "string", "description": "脚本用途描述，用于后续语义匹配" },
-                "content": { "type": "string", "description": "完整脚本内容" },
-                "runtime": { "type": "string", "enum": ["python_pep723", "shell"], "description": "脚本运行方式" },
-                "shell_target": { "type": ["string", "null"], "enum": ["bash", "pwsh", "sh", null], "description": "shell 时的目标解释器" },
-                "params": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": { "type": "string" },
-                            "label": { "type": "string" },
-                            "widget": {
-                                "type": "object",
-                                "properties": {
-                                    "type": { "type": "string", "enum": ["text", "secret", "file", "directory", "select", "number", "toggle", "textarea"] }
-                                },
-                                "required": ["type"]
-                            },
-                            "required": { "type": "boolean" },
-                            "description": { "type": ["string", "null"] },
-                            "default": { "type": ["string", "null"] }
-                        },
-                        "required": ["name", "label", "widget", "required"]
-                    }
-                }
-            },
-            "required": ["name", "description", "content", "runtime", "params"]
-        });
-
+        // 构建请求体
         let request_body = json!({
             "model": self.model,
-            "max_tokens": 4096,
+            "max_tokens": MAX_TOKENS,
             "system": system_prompt,
             "messages": [
                 { "role": "user", "content": user_input }
@@ -142,7 +164,7 @@ Shell 脚本参数读取: {shell_syntax}
                 {
                     "name": "generate_script",
                     "description": "根据用户需求生成可执行脚本及其参数声明",
-                    "input_schema": tool_schema
+                    "input_schema": &*TOOL_SCHEMA
                 }
             ],
             "tool_choice": {
@@ -151,7 +173,8 @@ Shell 脚本参数读取: {shell_syntax}
             }
         });
 
-        let url = format!("{}/v1/messages", self.api_base.trim_end_matches('/'));
+        // 发送请求
+        let url = format!("{}/v1/messages", self.api_base);
 
         let response = self
             .http
@@ -166,13 +189,15 @@ Shell 脚本参数读取: {shell_syntax}
         let status = response.status();
         let response_text = response.text().await?;
 
+        // 检查响应状态
         if !status.is_success() {
             anyhow::bail!("LLM API 错误 ({}): {}", status, response_text);
         }
 
+        // 解析响应
         let parsed: serde_json::Value = serde_json::from_str(&response_text)?;
 
-        // Extract tool_use from response
+        // 提取 tool_use 中的 input
         let content = parsed
             .get("content")
             .and_then(|c| c.as_array())
@@ -187,18 +212,22 @@ Shell 脚本参数读取: {shell_syntax}
             .get("input")
             .ok_or_else(|| anyhow::anyhow!("tool_use 缺少 input 字段"))?;
 
+        // 解析为 GeneratedScript
         let generated: GeneratedScript = serde_json::from_value(input.clone())?;
         Ok(generated)
     }
 }
 
+/// 将 LLM 返回的 GeneratedScript 转换为 Script 模型
 pub fn generated_script_to_script(generated: GeneratedScript) -> Result<Script> {
+    // 转换运行时类型
     let runtime = match generated.runtime.as_str() {
         "python_pep723" => ScriptRuntime::PythonPep723,
         "shell" => ScriptRuntime::Shell,
         _ => ScriptRuntime::Shell,
     };
 
+    // 转换 shell 目标
     let shell_target = generated.shell_target.and_then(|s| match s.as_str() {
         "bash" => Some(ShellTarget::Bash),
         "pwsh" => Some(ShellTarget::Pwsh),
@@ -206,6 +235,7 @@ pub fn generated_script_to_script(generated: GeneratedScript) -> Result<Script> 
         _ => None,
     });
 
+    // 创建脚本对象
     let mut script = Script::new(generated.name, generated.description, generated.content);
     script.runtime = runtime;
     script.shell_target = shell_target;

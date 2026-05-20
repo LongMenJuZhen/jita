@@ -1,8 +1,13 @@
-use anyhow::Result;
-use std::collections::HashMap;
+// 设置管理模块
+// 通过系统 keychain 存储敏感配置（API key 等）
 
+use anyhow::Result;
+
+/// keyring 服务名
 const SERVICE_NAME: &str = "jita";
 
+/// 设置管理器
+/// 封装 keyring 操作：存、取、删
 pub struct SettingsManager;
 
 impl SettingsManager {
@@ -10,6 +15,7 @@ impl SettingsManager {
         Self
     }
 
+    /// 从 keychain 读取值
     pub fn get(&self, key: &str) -> Result<Option<String>> {
         let entry = keyring::Entry::new(SERVICE_NAME, key)?;
         match entry.get_password() {
@@ -19,25 +25,22 @@ impl SettingsManager {
         }
     }
 
+    /// 写入 keychain
     pub fn set(&self, key: &str, value: &str) -> Result<()> {
         let entry = keyring::Entry::new(SERVICE_NAME, key)?;
         entry.set_password(value)?;
         Ok(())
     }
 
+    /// 从 keychain 删除
     pub fn delete(&self, key: &str) -> Result<()> {
         let entry = keyring::Entry::new(SERVICE_NAME, key)?;
         entry.delete_credential()?;
         Ok(())
     }
-
-    pub fn list_keys(&self) -> Result<Vec<String>> {
-        // keyring crate doesn't provide a way to list all keys for a service
-        // We store an index in the database for this
-        Ok(Vec::new())
-    }
 }
 
+/// AI 配置
 #[derive(Debug, Clone, Default)]
 pub struct AiConfig {
     pub api_key: String,
@@ -46,8 +49,9 @@ pub struct AiConfig {
 }
 
 impl AiConfig {
+    /// 从 keychain 加载配置
+    /// 环境变量优先级高于 keychain
     pub fn load(settings: &SettingsManager) -> Result<Self> {
-        // Environment variables take precedence over keyring
         let api_key = std::env::var("JITA_API_KEY")
             .ok()
             .or_else(|| settings.get("ai_api_key").ok().flatten())
@@ -69,6 +73,7 @@ impl AiConfig {
         })
     }
 
+    /// 保存到 keychain
     pub fn save(&self, settings: &SettingsManager) -> Result<()> {
         if !self.api_key.is_empty() {
             settings.set("ai_api_key", &self.api_key)?;
@@ -81,6 +86,7 @@ impl AiConfig {
     }
 }
 
+/// 应用配置
 #[derive(Debug, Clone, Default)]
 pub struct AppSettings {
     pub ai: AiConfig,
@@ -91,6 +97,7 @@ pub struct AppSettings {
 }
 
 impl AppSettings {
+    /// 从 keychain 加载配置
     pub fn load(settings: &SettingsManager) -> Result<Self> {
         Ok(Self {
             ai: AiConfig::load(settings)?,
@@ -101,6 +108,7 @@ impl AppSettings {
         })
     }
 
+    /// 保存到 keychain
     pub fn save(&self, settings: &SettingsManager) -> Result<()> {
         self.ai.save(settings)?;
         settings.set("hotkey", &self.hotkey)?;

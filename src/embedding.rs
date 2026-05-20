@@ -1,2 +1,9 @@
-// TODO: Implement vector indexing using fastembed crate
-// Phase 2 feature - semantic matching of scripts
+// 向量索引模块
+// 使用 fastembed 实现脚本的语义搜索功能
+// Phase 2 功能：用户可通过自然语言描述查找相关脚本
+
+// TODO: 使用 fastembed crate 实现向量索引
+// - 将脚本内容转换为向量嵌入
+// - 存储到向量数据库
+// - 支持余弦相似度搜索
+// - 根据用户描述找到最相关的脚本
