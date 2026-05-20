@@ -1,0 +1,13 @@
+ai_generating = AI 生成中...
+generation_failed = 生成失败: { $error }
+state_error = 状态错误
+task_stopped = 任务已停止
+stop_failed = 停止失败: { $error }
+discarded = 已放弃
+canceled = 已取消
+settings_saved = 设置已保存
+task_started = 任务 { $task_id } 开始执行...
+execution_success = 执行成功
+execution_failed_exit_code = 执行失败，退出码: { $code }
+execution_error = 执行异常
+execution_failed = 执行失败: { $error }

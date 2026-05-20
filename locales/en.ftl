@@ -1,0 +1,13 @@
+ai_generating = AI generating...
+generation_failed = Generation failed: { $error }
+state_error = State error
+task_stopped = Task stopped
+stop_failed = Failed to stop: { $error }
+discarded = Discarded
+canceled = Canceled
+settings_saved = Settings saved
+task_started = Task { $task_id } started...
+execution_success = Execution succeeded
+execution_failed_exit_code = Execution failed, exit code: { $code }
+execution_error = Execution error
+execution_failed = Execution failed: { $error }
