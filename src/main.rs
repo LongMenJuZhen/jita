@@ -19,8 +19,9 @@ mod ui;            // Slint UI
 mod utils;          // 工具函数
 
 use app::App;                      // 应用核心
+use asr::AsrManager;              // ASR 管理器
 use slint::{ComponentHandle, Weak}; // Slint 窗口组件
-use std::cell::RefCell;             // 内部可变性（用于 ASR 状态）
+use std::path::PathBuf;           // 路径类型
 use std::sync::Arc;                 // 原子引用计数
 use tokio::sync::Mutex;             // 异步互斥锁
 
@@ -53,6 +54,37 @@ fn main() {
         );
         window.set_settings_model(app_guard.settings.ai.model.clone().into());
     }
+
+    // ============================================================
+    // 初始化 ASR 管理器（预加载模型）
+    // ============================================================
+    let model_dir = PathBuf::from("C:/Users/cyc31/orca/workspaces/jita/ASR/asset/model");
+    let asr_manager = Arc::new(Mutex::new(AsrManager::new(model_dir)));
+
+    // 在后台预加载 ASR 模型
+    let asr_preload = asr_manager.clone();
+    let rt_preload = runtime.handle().clone();
+    let window_preload = window.as_weak();
+    rt_preload.spawn(async move {
+        let weak = window_preload.clone();
+        let status_cb = move |status: String| {
+            let weak_cb = weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(w) = weak_cb.upgrade() {
+                    w.set_status_text(status.into());
+                }
+            });
+        };
+
+        if let Ok(_) = asr_preload.lock().await.preload(status_cb) {
+            let weak = window_preload.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(w) = weak.upgrade() {
+                    w.set_status_text("ASR 模型已就绪".into());
+                }
+            });
+        }
+    });
 
     // ============================================================
     // 回调：用户提交输入
@@ -356,23 +388,70 @@ fn main() {
     });
 
     // ============================================================
-    // 回调：切换 ASR 语音输入（预留）
+    // 回调：切换 ASR 语音输入
     // ============================================================
     let window_weak_asr = window.as_weak();
-    let asr_active = RefCell::new(false);
+    let asr_manager_clone = asr_manager.clone();
+    let rt_asr = runtime.handle().clone();
+
     window.on_toggle_asr(move || {
-        let mut active = asr_active.borrow_mut();
-        *active = !*active;
         let weak = window_weak_asr.clone();
-        let is_active = *active;
-        let _ = slint::invoke_from_event_loop(move || {
-            if let Some(w) = weak.upgrade() {
-                w.set_asr_active(is_active);
+        let manager = asr_manager_clone.clone();
+        let rt = rt_asr.clone();
+
+        rt.spawn(async move {
+            let mut asr = manager.lock().await;
+
+            if asr.is_listening() {
+                // 停止监听
+                asr.stop();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_asr_active(false);
+                        w.set_status_text("ASR 已停止".into());
+                    }
+                });
+            } else {
+                // 开始监听
+                let weak_for_status = weak.clone();
+                let weak_for_text = weak.clone();
+
+                match asr.start_listening(
+                    move |status| {
+                        let weak_cb = weak_for_status.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(w) = weak_cb.upgrade() {
+                                w.set_status_text(status.into());
+                            }
+                        });
+                    },
+                    move |text| {
+                        let weak_cb = weak_for_text.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(w) = weak_cb.upgrade() {
+                                w.set_input_text(text.into());
+                            }
+                        });
+                    },
+                ) {
+                    Ok(_) => {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(w) = weak.upgrade() {
+                                w.set_asr_active(true);
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(w) = weak.upgrade() {
+                                w.set_asr_active(false);
+                                w.set_status_text(format!("ASR 错误: {}", e).into());
+                            }
+                        });
+                    }
+                }
             }
         });
-        if is_active {
-            println!("ASR 已启用（待实现）");
-        }
     });
 
     // ============================================================
