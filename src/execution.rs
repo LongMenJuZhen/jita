@@ -101,7 +101,6 @@ impl ScriptExecutor {
     /// 脚本存储在 ~/.local/share/jita/scripts/ 目录
     async fn write_script_to_disk(&self, script: &crate::script::Script) -> Result<PathBuf> {
         use crate::utils::scripts_dir;
-        use std::fs::Permissions;
         #[cfg(unix)]
         use std::os::unix::fs::PermissionsExt;
 

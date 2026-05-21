@@ -1,0 +1,13 @@
+# Cargo 配置
+# 解决 Windows/MSVC 上 ort (onnxruntime) 与其他依赖的运行时库冲突
+
+[target.x86_64-pc-windows-msvc]
+# 使用静态 CRT 并显式链接所需的 C 运行时库
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=msvcrt.lib",
+    "-C", "link-arg=msvcrtd.lib",
+]
+
+[build]
+incremental = true

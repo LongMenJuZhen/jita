@@ -39,12 +39,27 @@ reqwest = { version = "0.12", features = ["json"] }
 # Error handling
 anyhow = "1.0"
 
+# Global hotkey & system tray
+global-hotkey = "0.7"
+tray-icon = "0.19"
+
+# Embedding (与 rig-fastembed 保持一致版本，避免 ort 冲突)
+# 使用 ort-download-binaries feature 下载预编译的 ort 二进制
+fastembed = { version = "4.9", features = ["ort-download-binaries", "ort-load-dynamic"] }
+
+# Image (for tray icon)
+png = "0.17"
+
 # i18n
 fluent-bundle = "0.15"
 unic-langid = "0.9"
 
 [build-dependencies]
 slint-build = "1.6"
+
+[profile.dev]
+opt-level = 0
+lto = false
 
 [dev-dependencies]
 tempfile = "3.0"

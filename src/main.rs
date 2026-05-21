@@ -127,7 +127,7 @@ fn main() {
 
                     // 将脚本存入应用状态（供执行时使用）
                     {
-                        let mut app_guard = app.lock().await;
+                        let app_guard = app.lock().await;
                         app_guard.state.lock().await.window_state =
                             state::MainWindowState::Reviewing { script };
                     }
@@ -601,7 +601,7 @@ async fn execute_and_stream(
         Ok(task_handle) => {
             let task_id = task_handle.task_id.clone();
             let mut rx = task_handle.rx;
-            let task_manager = app.lock().await.task_manager.clone();
+            let _task_manager = app.lock().await.task_manager.clone();
 
             // 更新 UI 为执行状态
             let weak_status = weak.clone();

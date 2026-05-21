@@ -19,7 +19,7 @@ pub struct GeneratedScript {
 }
 
 /// 工具的 JSON Schema（静态初始化，避免每次请求重建）
-static TOOL_SCHEMA: Lazy<serde_json::Value> = Lazy::new(|| {
+pub static TOOL_SCHEMA: Lazy<serde_json::Value> = Lazy::new(|| {
     json!({
         "type": "object",
         "properties": {

@@ -71,24 +71,18 @@ fn make_bundle(primary_locale: Locale) -> FluentBundle<FluentResource> {
         LanguageIdentifier::from_bytes(b"en").expect("invalid en"),
     ]);
 
+    // FluentBundle 不允许覆盖已存在的消息 ID，
+    // 所以只能添加主语言的资源，fallback 只能通过 locale 切换实现
     match primary_locale {
         Locale::ZhCN => {
             let res = FluentResource::try_new(zh_ftl.to_string())
                 .expect("Failed to parse zh-CN.ftl");
             bundle.add_resource(res).expect("Failed to add zh-CN resource");
-
-            let res = FluentResource::try_new(en_ftl.to_string())
-                .expect("Failed to parse en.ftl");
-            bundle.add_resource(res).expect("Failed to add en resource");
         }
         Locale::En => {
             let res = FluentResource::try_new(en_ftl.to_string())
                 .expect("Failed to parse en.ftl");
             bundle.add_resource(res).expect("Failed to add en resource");
-
-            let res = FluentResource::try_new(zh_ftl.to_string())
-                .expect("Failed to parse zh-CN.ftl");
-            bundle.add_resource(res).expect("Failed to add zh-CN resource");
         }
     }
 

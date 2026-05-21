@@ -2,7 +2,7 @@
 // 持有所有业务模块的引用，协调各子系统的工作
 
 use crate::db::Database;                    // SQLite 数据库
-use crate::llm::{GeneratedScript, LlmClient}; // LLM 客户端
+use crate::llm::LlmClient; // LLM 客户端
 use crate::script::{ExecutionContext, Script}; // 数据模型
 use crate::settings::{AppSettings, SettingsManager}; // 全局设置
 use crate::state::AppState;                  // 应用状态
