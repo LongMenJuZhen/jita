@@ -1,9 +1,9 @@
 // 应用核心模块
 // 持有所有业务模块的引用，协调各子系统的工作
 
-use crate::db::Database;                    // SQLite 数据库
+use crate::agent::db::Database;                    // SQLite 数据库
 use crate::llm::LlmClient; // LLM 客户端
-use crate::script::{ExecutionContext, Script}; // 数据模型
+use crate::task_manager::script::{ExecutionContext, Script}; // 数据模型
 use crate::settings::{AppSettings, SettingsManager}; // 全局设置
 use crate::state::AppState;                  // 应用状态
 use crate::task_manager::TaskManager;         // 任务管理器
@@ -17,7 +17,7 @@ use tokio::sync::Mutex;                     // 异步互斥锁
 /// 持有所有业务模块的引用，通过 Arc<Mutex> 支持跨线程共享
 pub struct App {
     pub state: Arc<Mutex<AppState>>,              // 应用状态（窗口状态、任务列表等）
-    pub db: Arc<tokio::sync::Mutex<Database>>,    // 数据库连接
+    pub db: Arc<Mutex<Database>>,                  // 数据库连接
     pub settings_manager: SettingsManager,          // 设置管理器（keyring 操作）
     pub settings: AppSettings,                    // 当前配置（内存缓存）
     pub task_manager: TaskManager,                // 任务管理器（子进程控制）
@@ -33,7 +33,7 @@ impl App {
         utils::ensure_dirs()?;
 
         // 初始化数据库
-        let db = Arc::new(tokio::sync::Mutex::new(Database::new(None)?));
+        let db = Arc::new(Mutex::new(Database::new(None)?));
 
         // 创建设置管理器
         let settings_manager = SettingsManager::new();
@@ -143,7 +143,7 @@ impl App {
         exit_code: Option<i32>,
         stderr_summary: Option<String>,
     ) -> Result<()> {
-        let record = crate::script::ExecutionRecord {
+        let record = crate::task_manager::script::ExecutionRecord {
             id: uuid::Uuid::new_v4().to_string(),
             script_id: script_id.to_string(),
             params_used: params,

@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 # UI
-slint = "1.6"
+slint = { version = "1.6",features = ["gettext"] }
 
 # Audio / ASR
 sherpa-onnx = "1.13.1"
@@ -51,8 +51,13 @@ fastembed = { version = "4.9", features = ["ort-download-binaries", "ort-load-dy
 png = "0.17"
 
 # i18n
-fluent-bundle = "0.15"
+fluent = "0.17.0"
 unic-langid = "0.9"
+
+# Model download / extraction
+tar = "0.4"
+bzip2 = "0.4"
+memvid-core = "2.0.139"
 
 [build-dependencies]
 slint-build = "1.6"

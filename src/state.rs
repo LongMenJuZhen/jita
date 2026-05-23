@@ -1,7 +1,7 @@
 // 状态机模块
 // 定义主窗口状态和任务状态
 
-use crate::script::Script;
+use crate::task_manager::script::Script;
 use std::collections::HashMap;
 
 /// 主窗口状态枚举

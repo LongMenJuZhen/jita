@@ -1,0 +1,83 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2026-05-22 13:35+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: ui\main.slint:62
+msgctxt "JitaWindow"
+msgid "未检测到 uv，脚本执行功能不可用。请安装 uv。"
+msgstr ""
+
+#: ui\main.slint:74 ui\main.slint:302
+msgctxt "JitaWindow"
+msgid "设置"
+msgstr ""
+
+#: ui\main.slint:147
+msgctxt "JitaWindow"
+msgid "模型"
+msgstr ""
+
+#: ui\main.slint:245
+msgctxt "JitaWindow"
+msgid "保存"
+msgstr ""
+
+#: ui\main.slint:267 ui\main.slint:743
+msgctxt "JitaWindow"
+msgid "取消"
+msgstr ""
+
+#: ui\main.slint:364
+msgctxt "JitaWindow"
+msgid "描述你的需求，例如：把当前目录所有 jpg 转成 png"
+msgstr ""
+
+#: ui\main.slint:371
+msgctxt "JitaWindow"
+msgid "AI 生成中..."
+msgstr ""
+
+#: ui\main.slint:387
+msgctxt "JitaWindow"
+msgid "生成脚本"
+msgstr ""
+
+#: ui\main.slint:456
+msgctxt "JitaWindow"
+msgid "执行"
+msgstr ""
+
+#: ui\main.slint:479
+msgctxt "JitaWindow"
+msgid "停止"
+msgstr ""
+
+#: ui\main.slint:501
+msgctxt "JitaWindow"
+msgid "关闭"
+msgstr ""
+
+#: ui\main.slint:501
+msgctxt "JitaWindow"
+msgid "放弃"
+msgstr ""
+
+#: ui\main.slint:520
+msgctxt "JitaWindow"
+msgid "填写参数"
+msgstr ""
+
+#: ui\main.slint:721
+msgctxt "JitaWindow"
+msgid "提交并执行"
+msgstr ""

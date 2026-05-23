@@ -28,9 +28,9 @@ impl ScriptExecutor {
     /// 返回子进程和输出流接收端
     pub async fn execute(
         &self,
-        script: &crate::script::Script,
+        script: &crate::task_manager::script::Script,
         params: &HashMap<String, String>,
-        context: &crate::script::ExecutionContext,
+        context: &crate::task_manager::script::ExecutionContext,
     ) -> Result<(Child, mpsc::UnboundedReceiver<OutputLine>)> {
         // 将脚本写入磁盘
         let script_path = self.write_script_to_disk(script).await?;
@@ -40,17 +40,17 @@ impl ScriptExecutor {
 
         // 根据运行时类型选择命令
         let (cmd, args) = match script.runtime {
-            crate::script::ScriptRuntime::PythonPep723 => {
+            crate::task_manager::script::ScriptRuntime::PythonPep723 => {
                 // uv run script.py
                 ("uv", vec!["run".to_string(), script_path.to_string_lossy().to_string()])
             }
-            crate::script::ScriptRuntime::Shell => {
+            crate::task_manager::script::ScriptRuntime::Shell => {
                 // 根据目标 shell 选择命令
                 let shell = script.shell_target.clone().unwrap_or_default();
                 match shell {
-                    crate::script::ShellTarget::Bash => ("bash", vec![script_path.to_string_lossy().to_string()]),
-                    crate::script::ShellTarget::Pwsh => ("pwsh", vec!["-File".to_string(), script_path.to_string_lossy().to_string()]),
-                    crate::script::ShellTarget::Sh => ("sh", vec![script_path.to_string_lossy().to_string()]),
+                    crate::task_manager::script::ShellTarget::Bash => ("bash", vec![script_path.to_string_lossy().to_string()]),
+                    crate::task_manager::script::ShellTarget::Pwsh => ("pwsh", vec!["-File".to_string(), script_path.to_string_lossy().to_string()]),
+                    crate::task_manager::script::ShellTarget::Sh => ("sh", vec![script_path.to_string_lossy().to_string()]),
                 }
             }
         };
@@ -99,7 +99,7 @@ impl ScriptExecutor {
 
     /// 将脚本写入磁盘
     /// 脚本存储在 ~/.local/share/jita/scripts/ 目录
-    async fn write_script_to_disk(&self, script: &crate::script::Script) -> Result<PathBuf> {
+    async fn write_script_to_disk(&self, script: &crate::task_manager::script::Script) -> Result<PathBuf> {
         use crate::utils::scripts_dir;
         #[cfg(unix)]
         use std::os::unix::fs::PermissionsExt;
@@ -109,10 +109,10 @@ impl ScriptExecutor {
 
         // 根据运行时确定文件扩展名
         let ext = match script.runtime {
-            crate::script::ScriptRuntime::PythonPep723 => "py",
-            crate::script::ScriptRuntime::Shell => {
+            crate::task_manager::script::ScriptRuntime::PythonPep723 => "py",
+            crate::task_manager::script::ScriptRuntime::Shell => {
                 match script.shell_target {
-                    Some(crate::script::ShellTarget::Pwsh) => "ps1",
+                    Some(crate::task_manager::script::ShellTarget::Pwsh) => "ps1",
                     _ => "sh",
                 }
             }
@@ -135,12 +135,12 @@ impl ScriptExecutor {
     /// 将参数转换为环境变量注入脚本
     fn build_env_vars(
         &self,
-        script: &crate::script::Script,
+        script: &crate::task_manager::script::Script,
         params: &HashMap<String, String>,
-        context: &crate::script::ExecutionContext,
+        context: &crate::task_manager::script::ExecutionContext,
     ) -> HashMap<String, String> {
         use crate::utils::PATH_SEP;
-        use crate::script::WidgetType;
+        use crate::task_manager::script::WidgetType;
 
         let mut env = context.env_vars.clone();
 

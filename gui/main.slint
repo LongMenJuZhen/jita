@@ -1,3 +1,4 @@
+//这里定义的是输入用户指令的小窗口
 // 参数字段结构
 export struct ParamField {
     name: string,
@@ -40,6 +41,7 @@ export component JitaWindow inherits Window {
     callback save_settings();
     callback open_settings();
     callback close_settings();
+    callback open_models_folder();
     callback submit_params();
     callback cancel_params();
 
@@ -167,6 +169,65 @@ export component JitaWindow inherits Window {
             }
         }
 
+        VerticalLayout {
+            spacing: 4px;
+
+            Text {
+                text: "ASR 模型路径";
+                font-size: 14px;
+                font-weight: 600;
+                color: #333333;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                height: 40px;
+
+                Rectangle {
+                    border-radius: 8px;
+                    border-color: #e0e0e0;
+                    border-width: 1px;
+                    background: #fafafa;
+                    height: 40px;
+                    vertical-stretch: 0;
+
+                    TextInput {
+                        x: 12px;
+                        y: (parent.height - self.preferred-height) / 2;
+                        width: parent.width - 24px;
+                        text: "点击下方按钮打开模型文件夹";
+                        font-size: 13px;
+                        color: #666666;
+                        single-line: true;
+                        read-only: true;
+                    }
+                }
+
+                TouchArea {
+                    width: 80px;
+                    height: 40px;
+
+                    Rectangle {
+                        border-radius: 8px;
+                        background: #17a2b8;
+
+                        Text {
+                            x: (parent.width - self.preferred-width) / 2;
+                            y: (parent.height - self.preferred-height) / 2;
+                            text: "打开";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #ffffff;
+                        }
+                    }
+
+                    clicked => {
+                        root.open_models_folder();
+                    }
+                }
+            }
+        }
+
         HorizontalLayout {
             spacing: 8px;
             height: 40px;
@@ -188,7 +249,9 @@ export component JitaWindow inherits Window {
                     }
                 }
 
-                clicked => { root.save_settings(); }
+                clicked => {
+                    root.save_settings();
+                }
             }
 
             TouchArea {
@@ -208,7 +271,9 @@ export component JitaWindow inherits Window {
                     }
                 }
 
-                clicked => { root.close_settings(); }
+                clicked => {
+                    root.close_settings();
+                }
             }
         }
     }
@@ -240,7 +305,9 @@ export component JitaWindow inherits Window {
                     }
                 }
 
-                clicked => { root.open_settings(); }
+                clicked => {
+                    root.open_settings();
+                }
             }
         }
 
@@ -286,7 +353,9 @@ export component JitaWindow inherits Window {
                         }
                     }
 
-                    clicked => { root.toggle_asr(); }
+                    clicked => {
+                        root.toggle_asr();
+                    }
                 }
             }
 
@@ -322,7 +391,9 @@ export component JitaWindow inherits Window {
                     }
                 }
 
-                clicked => { root.submit_input(root.input_text); }
+                clicked => {
+                    root.submit_input(root.input_text);
+                }
             }
         }
 
@@ -389,7 +460,9 @@ export component JitaWindow inherits Window {
                         }
                     }
 
-                    clicked => { root.execute_script(); }
+                    clicked => {
+                        root.execute_script();
+                    }
                 }
 
                 if root.is_executing:
@@ -410,7 +483,9 @@ export component JitaWindow inherits Window {
                         }
                     }
 
-                    clicked => { root.stop_script(); }
+                    clicked => {
+                        root.stop_script();
+                    }
                 }
 
                 TouchArea {
@@ -430,7 +505,9 @@ export component JitaWindow inherits Window {
                         }
                     }
 
-                    clicked => { root.cancel(); }
+                    clicked => {
+                        root.cancel();
+                    }
                 }
             }
         }
@@ -466,6 +543,7 @@ export component JitaWindow inherits Window {
                             font-weight: 600;
                             color: #333333;
                         }
+
                         Rectangle {
                             border-radius: 6px;
                             border-color: #e0e0e0;
@@ -493,6 +571,7 @@ export component JitaWindow inherits Window {
                             font-weight: 600;
                             color: #333333;
                         }
+
                         Rectangle {
                             border-radius: 6px;
                             border-color: #e0e0e0;
@@ -520,6 +599,7 @@ export component JitaWindow inherits Window {
                             font-weight: 600;
                             color: #333333;
                         }
+
                         Rectangle {
                             border-radius: 6px;
                             border-color: #e0e0e0;
@@ -547,6 +627,7 @@ export component JitaWindow inherits Window {
                             font-weight: 600;
                             color: #333333;
                         }
+
                         Rectangle {
                             border-radius: 6px;
                             border-color: #e0e0e0;
@@ -574,6 +655,7 @@ export component JitaWindow inherits Window {
                             font-weight: 600;
                             color: #333333;
                         }
+
                         Rectangle {
                             border-radius: 6px;
                             border-color: #e0e0e0;
@@ -601,6 +683,7 @@ export component JitaWindow inherits Window {
                             font-weight: 600;
                             color: #333333;
                         }
+
                         Rectangle {
                             border-radius: 6px;
                             border-color: #e0e0e0;
@@ -642,7 +725,9 @@ export component JitaWindow inherits Window {
                         }
                     }
 
-                    clicked => { root.submit_params(); }
+                    clicked => {
+                        root.submit_params();
+                    }
                 }
 
                 TouchArea {
@@ -662,7 +747,9 @@ export component JitaWindow inherits Window {
                         }
                     }
 
-                    clicked => { root.cancel_params(); }
+                    clicked => {
+                        root.cancel_params();
+                    }
                 }
             }
         }

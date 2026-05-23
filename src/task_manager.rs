@@ -1,15 +1,18 @@
 // 任务管理器模块
 // 管理脚本执行的生命周期：启动、停止、状态追踪
 
-use crate::execution::{OutputLine, ScriptExecutor};
-use crate::script::{ExecutionContext, Script};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::process::Child;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
+use crate::task_manager::execution::{OutputLine, ScriptExecutor};
+use crate::task_manager::script::{ExecutionContext, Script};
+
+pub mod script;
+pub mod execution;
 
 /// 支持 Clone 以便跨线程共享
 impl Clone for TaskManager {

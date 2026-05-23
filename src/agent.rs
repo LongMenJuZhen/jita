@@ -3,7 +3,7 @@
 // 负责构建 prompt、调用 LLM API、解析结构化响应
 // 主要用途: 错误修复循环（多轮对话）和高级 Agent 功能
 
-use crate::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
+use crate::task_manager::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
 use anyhow::Result;
 use rig::prelude::*;
 use rig::{
@@ -11,6 +11,9 @@ use rig::{
     providers::anthropic::{self, completion::CLAUDE_SONNET_4_6},
 };
 use serde::{Deserialize, Serialize};
+
+mod embedding;
+pub mod db;
 
 /// 修复请求
 /// 用于 AI 修复失败脚本时的输入

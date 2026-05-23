@@ -1,7 +1,6 @@
+// 用于编译 slint 图形界面定义文件
 fn main() {
-    let config = slint_build::CompilerConfiguration::new()
-        .with_bundled_translations("lang");
-    slint_build::compile_with_config("ui/main.slint", config).unwrap();
+    slint_build::compile("gui/main.slint").unwrap();
 
     #[cfg(all(windows, target_arch = "x86_64"))]
     {

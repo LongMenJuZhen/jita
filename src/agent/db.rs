@@ -1,7 +1,7 @@
 // 数据库模块
 // 使用 SQLite 存储脚本、执行记录和 uv 工具缓存
 
-use crate::script::{ExecutionRecord, Script, UvToolCache};
+use crate::task_manager::script::{ExecutionRecord, Script, UvToolCache};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, params};
@@ -24,7 +24,7 @@ impl Database {
     pub fn new(db_path: Option<PathBuf>) -> Result<Self> {
         // 默认路径：~/.local/share/jita/jita.db
         let path = db_path.unwrap_or_else(|| {
-            let data_dir = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
+            let data_dir = dirs::data_dir().unwrap_or_else(|| PathBuf::from("../.."));
             data_dir.join("jita").join("jita.db")
         });
 
@@ -276,7 +276,7 @@ impl Database {
 
     /// 将数据库行转换为 Script 对象
     fn row_to_script(&self, row: &rusqlite::Row) -> Result<Script, rusqlite::Error> {
-        use crate::script::{ParamDeclaration, ScriptRuntime, ShellTarget};
+        use crate::task_manager::script::{ParamDeclaration, ScriptRuntime, ShellTarget};
 
         // 解析 JSON 字段
         let runtime_str: String = row.get("runtime")?;

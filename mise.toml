@@ -1,0 +1,4 @@
+[tasks.get_ui_text]
+description = "从UI文件中提取需要翻译的字符。"
+shell = "pwsh -Command"
+run = "slint-tr-extractor -o locales/GUI/jita.pot (fd --extension slint . ui)"

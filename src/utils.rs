@@ -1,6 +1,6 @@
 // 工具函数模块
 // 提供数据目录、脚本目录、uv 检测等通用功能
-
+// 这个文件不应该超过300行
 use std::path::PathBuf;
 
 /// 获取 Jita 数据目录
@@ -19,18 +19,25 @@ pub fn scripts_dir() -> PathBuf {
     data_dir().join("scripts")
 }
 
+/// 获取 ASR 模型目录
+/// 位于 data_dir()/models/
+pub fn models_dir() -> PathBuf {
+    data_dir().join("models")
+}
+
 /// 确保必要的目录存在
 pub fn ensure_dirs() -> anyhow::Result<()> {
     std::fs::create_dir_all(data_dir())?;
     std::fs::create_dir_all(scripts_dir())?;
+    std::fs::create_dir_all(models_dir())?;
     Ok(())
 }
 
 // uv 可用性状态
 #[derive(Debug, Clone, PartialEq)]
 pub enum UvStatus {
-    Available(String),                      // 可用，值为版本字符串
-    Missing,                                // 未安装
+    Available(String),                                // 可用，值为版本字符串
+    Missing,                                          // 未安装
     LowVersion { current: String, required: String }, // 版本过低
 }
 
@@ -38,9 +45,7 @@ pub enum UvStatus {
 pub fn check_uv() -> UvStatus {
     match std::process::Command::new("uv").arg("--version").output() {
         Ok(out) if out.status.success() => {
-            let version = String::from_utf8_lossy(&out.stdout)
-                .trim()
-                .to_string();
+            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
             // 提取版本号（取最后一个空格分隔的部分）
             let version_num = version
                 .split_whitespace()
@@ -78,8 +83,12 @@ fn is_version_sufficient(current: &str, required: &str) -> bool {
     for i in 0..r.len().max(c.len()) {
         let cv = c.get(i).copied().unwrap_or(0);
         let rv = r.get(i).copied().unwrap_or(0);
-        if cv > rv { return true; }
-        if cv < rv { return false; }
+        if cv > rv {
+            return true;
+        }
+        if cv < rv {
+            return false;
+        }
     }
     true
 }

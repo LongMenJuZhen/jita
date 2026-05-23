@@ -1,3 +1,4 @@
 /target
 asset/*
 .claude/
+.idea/

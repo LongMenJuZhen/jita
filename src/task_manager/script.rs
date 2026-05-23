@@ -135,7 +135,7 @@ impl ExecutionContext {
     /// 创建新的执行上下文
     pub fn new() -> Self {
         Self {
-            cwd: dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")),
+            cwd: dirs::home_dir().unwrap_or_else(|| PathBuf::from("../..")),
             selected_files: Vec::new(),
             clipboard_path: None,
             env_vars: std::collections::HashMap::new(),

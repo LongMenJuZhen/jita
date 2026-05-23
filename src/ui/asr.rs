@@ -9,12 +9,17 @@ use sherpa_onnx::{
     LinearResampler, OfflineQwen3ASRModelConfig, OfflineRecognizer, OfflineRecognizerConfig,
     VadModelConfig, VoiceActivityDetector,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
+
+// 模型下载相关常量
+const VAD_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx";
+const ASR_ARCHIVE_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2";
+const ASR_DIR_NAME: &str = "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25";
 
 // ASR 管理器 - 负责模型预加载和音频监听
 pub struct AsrManager {
@@ -43,8 +48,8 @@ impl AsrManager {
     pub fn preload(&self, on_status: impl Fn(String)) -> Result<()> {
         on_status("正在加载 ASR 模型...".to_string());
 
-        let vad = create_vad(&self.model_dir);
-        let recognizer = create_recognizer(&self.model_dir);
+        let vad = create_vad(&self.model_dir)?;
+        let recognizer = create_recognizer(&self.model_dir)?;
 
         // 检查采样率并创建重采样器
         let host = cpal::default_host();
@@ -236,7 +241,7 @@ impl AsrManager {
 
 impl Default for AsrManager {
     fn default() -> Self {
-        Self::new(PathBuf::from("."))
+        Self::new(PathBuf::from("../../.."))
     }
 }
 
@@ -245,6 +250,130 @@ impl Drop for AsrManager {
         self.stop();
     }
 }
+
+// =============================================================================
+// 模型管理：检查、下载、解压
+// =============================================================================
+
+/// 检查所有必需的 ASR 模型文件是否就绪
+pub fn models_ready(model_dir: &Path) -> bool {
+    let vad_path = model_dir.join("silero_vad.onnx");
+    let asr_dir = model_dir.join(ASR_DIR_NAME);
+    let files = ["conv_frontend.onnx", "encoder.int8.onnx", "decoder.int8.onnx", "tokenizer"];
+    vad_path.exists() && files.iter().all(|f| asr_dir.join(f).exists())
+}
+
+/// 确保模型存在，缺失时自动下载
+pub async fn ensure_models(
+    model_dir: &Path,
+    on_status: impl Fn(String) + Send,
+) -> Result<()> {
+    if models_ready(model_dir) {
+        return Ok(());
+    }
+
+    std::fs::create_dir_all(model_dir)?;
+
+    // 下载 VAD 模型
+    let vad_path = model_dir.join("silero_vad.onnx");
+    if !vad_path.exists() {
+        on_status("正在下载 VAD 模型...".to_string());
+        download_file(VAD_URL, &vad_path, |downloaded, total| {
+            if let Some(t) = total {
+                on_status(format!(
+                    "下载 VAD 模型: {:.1}/{:.1} MB",
+                    downloaded as f64 / 1024.0 / 1024.0,
+                    t as f64 / 1024.0 / 1024.0
+                ));
+            } else {
+                on_status(format!(
+                    "下载 VAD 模型: {:.1} MB",
+                    downloaded as f64 / 1024.0 / 1024.0
+                ));
+            }
+        })
+        .await?;
+    }
+
+    // 下载并解压 ASR 模型包
+    let asr_dir = model_dir.join(ASR_DIR_NAME);
+    let asr_files = ["conv_frontend.onnx", "encoder.int8.onnx", "decoder.int8.onnx", "tokenizer"];
+    let need_asr = !asr_files.iter().all(|f| asr_dir.join(f).exists());
+
+    if need_asr {
+        on_status("正在下载 ASR 模型（约 600MB，请耐心等待）...".to_string());
+        let archive_path = model_dir.join("asr_models.tar.bz2");
+        download_file(ASR_ARCHIVE_URL, &archive_path, |downloaded, total| {
+            if let Some(t) = total {
+                on_status(format!(
+                    "下载 ASR 模型: {:.1}/{:.1} MB",
+                    downloaded as f64 / 1024.0 / 1024.0,
+                    t as f64 / 1024.0 / 1024.0
+                ));
+            } else {
+                on_status(format!(
+                    "下载 ASR 模型: {:.1} MB",
+                    downloaded as f64 / 1024.0 / 1024.0
+                ));
+            }
+        })
+        .await?;
+
+        on_status("正在解压 ASR 模型...".to_string());
+        extract_tar_bz2(&archive_path, model_dir).await?;
+        let _ = std::fs::remove_file(&archive_path);
+        on_status("ASR 模型解压完成".to_string());
+    }
+
+    Ok(())
+}
+
+/// 下载文件，带进度回调
+async fn download_file(
+    url: &str,
+    path: &Path,
+    progress: impl Fn(u64, Option<u64>),
+) -> Result<()> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()?;
+
+    let mut response = client.get(url).send().await?;
+    let total = response.content_length();
+
+    let mut file = tokio::fs::File::create(path).await?;
+    let mut downloaded: u64 = 0;
+
+    while let Some(chunk) = response.chunk().await? {
+        tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await?;
+        downloaded += chunk.len() as u64;
+        progress(downloaded, total);
+    }
+
+    tokio::io::AsyncWriteExt::flush(&mut file).await?;
+    Ok(())
+}
+
+/// 解压 tar.bz2 归档
+async fn extract_tar_bz2(archive: &Path, dest: &Path) -> Result<()> {
+    let archive = archive.to_path_buf();
+    let dest = dest.to_path_buf();
+
+    tokio::task::spawn_blocking(move || {
+        let file = std::fs::File::open(&archive)?;
+        let decoder = bzip2::read::BzDecoder::new(file);
+        let mut tar = tar::Archive::new(decoder);
+        tar.unpack(&dest)?;
+        Ok::<(), anyhow::Error>(())
+    })
+    .await??;
+
+    Ok(())
+}
+
+// =============================================================================
+// 音频设备与输入流
+// =============================================================================
 
 /// 列出可用的输入设备
 fn list_input_devices(host: &cpal::Host) -> Result<cpal::Device> {
@@ -331,7 +460,7 @@ fn build_input_stream(device: &cpal::Device, tx: mpsc::Sender<Vec<f32>>) -> Resu
 }
 
 /// 创建 VAD
-fn create_vad(model_dir: &PathBuf) -> VoiceActivityDetector {
+fn create_vad(model_dir: &Path) -> Result<VoiceActivityDetector> {
     let mut config = VadModelConfig::default();
     config.silero_vad.model = Some(model_dir.join("silero_vad.onnx").to_string_lossy().to_string());
     config.silero_vad.threshold = 0.5;
@@ -342,17 +471,18 @@ fn create_vad(model_dir: &PathBuf) -> VoiceActivityDetector {
     config.sample_rate = 16000;
     config.debug = false;
 
-    VoiceActivityDetector::create(&config, 20.0).expect("创建 VAD 失败")
+    VoiceActivityDetector::create(&config, 20.0)
+        .ok_or_else(|| anyhow::anyhow!("创建 VAD 失败"))
 }
 
 /// 创建识别器
-fn create_recognizer(model_dir: &PathBuf) -> OfflineRecognizer {
+fn create_recognizer(model_dir: &Path) -> Result<OfflineRecognizer> {
     let mut config = OfflineRecognizerConfig::default();
     config.model_config.qwen3_asr = OfflineQwen3ASRModelConfig {
-        conv_frontend: Some(model_dir.join("conv_frontend.onnx").to_string_lossy().to_string()),
-        encoder: Some(model_dir.join("encoder.int8.onnx").to_string_lossy().to_string()),
-        decoder: Some(model_dir.join("decoder.int8.onnx").to_string_lossy().to_string()),
-        tokenizer: Some(model_dir.join("tokenizer").to_string_lossy().to_string()),
+        conv_frontend: Some(model_dir.join(ASR_DIR_NAME).join("conv_frontend.onnx").to_string_lossy().to_string()),
+        encoder: Some(model_dir.join(ASR_DIR_NAME).join("encoder.int8.onnx").to_string_lossy().to_string()),
+        decoder: Some(model_dir.join(ASR_DIR_NAME).join("decoder.int8.onnx").to_string_lossy().to_string()),
+        tokenizer: Some(model_dir.join(ASR_DIR_NAME).join("tokenizer").to_string_lossy().to_string()),
         ..Default::default()
     };
     config.model_config.tokens = Some(String::new());
@@ -360,7 +490,8 @@ fn create_recognizer(model_dir: &PathBuf) -> OfflineRecognizer {
     config.model_config.debug = false;
 
     println!("正在加载 ASR 模型...");
-    let recognizer = OfflineRecognizer::create(&config).expect("创建识别器失败");
+    let recognizer = OfflineRecognizer::create(&config)
+        .ok_or_else(|| anyhow::anyhow!("创建识别器失败"))?;
     println!("ASR 模型加载完成");
-    recognizer
+    Ok(recognizer)
 }

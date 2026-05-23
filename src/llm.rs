@@ -1,7 +1,7 @@
 // LLM 客户端模块
 // 调用 Anthropic API 生成脚本
 
-use crate::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
+use crate::task_manager::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
