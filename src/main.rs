@@ -3,7 +3,6 @@
 
 mod agent;
 mod app;
-mod llm;
 mod settings;
 mod state;
 mod task_manager;
@@ -13,13 +12,21 @@ mod utils;
 use app::App;
 
 fn main() {
+    // 初始化日志
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_target(false)
+        .init();
+
+    tracing::info!("Jita starting...");
+
     // 创建 tokio 异步运行时
-    let runtime = tokio::runtime::Runtime::new()
-        .expect("Failed to create tokio runtime");
+    let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
 
     // 初始化应用（阻塞等待完成）
-    let app = runtime
-        .block_on(async { App::new().expect("Failed to initialize app") });
+    let app = runtime.block_on(async { App::new().expect("Failed to initialize app") });
+
+    tracing::info!("App initialized, starting UI...");
 
     // 交给 UI 子系统
     ui::run(app, runtime);

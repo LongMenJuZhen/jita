@@ -5915,6 +5915,8 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "tray-icon",
  "unic-langid",
  "uuid",

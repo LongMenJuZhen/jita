@@ -1,128 +1,231 @@
 // 应用核心模块
 // 持有所有业务模块的引用，协调各子系统的工作
 
-use crate::agent::db::Database;                    // SQLite 数据库
-use crate::llm::LlmClient; // LLM 客户端
-use crate::task_manager::script::{ExecutionContext, Script}; // 数据模型
-use crate::settings::{AppSettings, SettingsManager}; // 全局设置
-use crate::state::AppState;                  // 应用状态
-use crate::task_manager::TaskManager;         // 任务管理器
-use crate::utils;                           // 工具函数
-use anyhow::Result;                          // 错误处理
-use std::collections::HashMap;               // 哈希映射
-use std::sync::Arc;                         // 原子引用计数
-use tokio::sync::Mutex;                     // 异步互斥锁
+use crate::agent::db::Database;
+use crate::agent::{AgentClient, CliTool};
+use crate::task_manager::script::{ExecutionContext, Script};
+use crate::settings::{AppSettings, SettingsManager};
+use crate::state::AppState;
+use crate::task_manager::TaskManager;
+use crate::utils;
+use anyhow::Result;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// 应用主结构
-/// 持有所有业务模块的引用，通过 Arc<Mutex> 支持跨线程共享
 pub struct App {
-    pub state: Arc<Mutex<AppState>>,              // 应用状态（窗口状态、任务列表等）
-    pub db: Arc<Mutex<Database>>,                  // 数据库连接
-    pub settings_manager: SettingsManager,          // 设置管理器（keyring 操作）
-    pub settings: AppSettings,                    // 当前配置（内存缓存）
-    pub task_manager: TaskManager,                // 任务管理器（子进程控制）
-    pub llm_client: Option<LlmClient>,            // LLM 客户端（可能未配置）
-    pub uv_available: bool,                       // uv 是否可用
+    pub state: Arc<Mutex<AppState>>,
+    pub db: Arc<Mutex<Database>>,
+    pub settings_manager: SettingsManager,
+    pub settings: AppSettings,
+    pub task_manager: TaskManager,
+    pub agent_client: Option<AgentClient>,
+    pub uv_available: bool,
 }
 
 impl App {
     /// 创建应用实例
-    /// 初始化数据库、加载配置、检测外部依赖
     pub fn new() -> Result<Self> {
-        // 确保数据目录存在
         utils::ensure_dirs()?;
 
-        // 初始化数据库
         let db = Arc::new(Mutex::new(Database::new(None)?));
 
-        // 创建设置管理器
         let settings_manager = SettingsManager::new();
-
-        // 从 keyring 加载配置
         let settings = AppSettings::load(&settings_manager).unwrap_or_default();
 
-        // 创建任务管理器
         let task_manager = TaskManager::new();
 
-        // 检测 uv 是否安装
         let uv_status = utils::check_uv();
         let uv_available = matches!(uv_status, utils::UvStatus::Available(_));
 
-        // 如果配置了 API key，创建 LLM 客户端
-        let llm_client = if settings.ai.api_key.is_empty() {
+        let agent_client = if settings.ai.api_key.is_empty() {
+            tracing::warn!("API key is empty, skipping AgentClient creation");
             None
         } else {
-            Some(LlmClient::new(
+            tracing::info!("Creating AgentClient with API key length: {}", settings.ai.api_key.len());
+            tracing::info!("API key first 8 chars: {}", &settings.ai.api_key[..8.min(settings.ai.api_key.len())]);
+            match AgentClient::new(
                 settings.ai.api_key.clone(),
-                settings.ai.model.clone(),
+                Some(settings.ai.model.clone()),
                 settings.ai.api_base.clone(),
-            ))
+            ) {
+                Ok(client) => {
+                    tracing::info!("AgentClient created successfully");
+                    Some(client)
+                }
+                Err(e) => {
+                    tracing::error!("Failed to create AgentClient: {}", e);
+                    None
+                }
+            }
         };
 
         Ok(Self {
             state: Arc::new(Mutex::new(AppState::default())),
-            db,
+            db: db.clone(),
             settings_manager,
             settings,
             task_manager,
-            llm_client,
+            agent_client,
             uv_available,
         })
     }
 
-    /// 调用 AI 生成脚本
-    /// 1. 收集 uv 工具摘要作为上下文
-    /// 2. 构建 system prompt
-    /// 3. 调用 LLM API
-    /// 4. 解析结构化输出
-    /// 5. 存入数据库
-    pub async fn generate_script(&self, user_input: &str) -> Result<Script> {
-        // 获取 LLM 客户端
-        let client = self
-            .llm_client
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("LLM client not configured"))?;
-
-        // 收集 uv 工具和执行上下文（在锁内完成数据库查询）
-        let (uv_summary, context) = {
-            let db = self.db.lock().await;
-            let uv_tools = db.list_uv_tools()?;
-            // 将工具列表格式化为一行一个
-            let uv_summary = uv_tools
-                .iter()
-                .filter_map(|t| t.ai_summary.as_ref().map(|s| format!("{}: {}", t.tool_name, s)))
-                .collect::<Vec<_>>()
-                .join("\n");
-            // 创建执行上下文
-            let context = ExecutionContext::new();
-            (uv_summary, context)
+    /// 初始化工具索引（后台执行）
+    /// 在应用启动后调用，异步索引本地命令行工具
+    pub async fn init_tool_indexing(self: &Arc<Self>) {
+        let agent = match &self.agent_client {
+            Some(a) => a.clone(),
+            None => return,
         };
 
-        // 格式化上下文摘要
+        let db = self.db.clone();
+
+        tokio::spawn(async move {
+            match crate::agent::env_familiar::index_tools(db, &agent).await {
+                Ok(count) => {
+                    if count > 0 {
+                        tracing::info!("Indexed {} new tools", count);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Tool indexing failed: {}", e);
+                }
+            }
+        });
+    }
+
+    /// 搜索相关工具（RAG）
+    /// 根据用户输入搜索相关的命令行工具
+    pub async fn search_related_tools(&self, user_input: &str) -> Result<Vec<CliTool>> {
+        let db = self.db.lock().await;
+        let embeddings = db.get_all_tool_embeddings()?;
+        drop(db);
+
+        if embeddings.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let results = crate::agent::search_tools(user_input, &embeddings, 5);
+
+        let mut tools = Vec::new();
+        for (name, desc, _) in results {
+            let db = self.db.lock().await;
+            if let Some(cache) = db.get_tool_cache(&name)? {
+                tools.push(CliTool {
+                    name,
+                    description: desc,
+                    version: Some(cache.version),
+                    help_text: cache.help_text,
+                    usage_guide: cache.usage_guide,
+                    embedding: cache.embedding,
+                });
+            }
+        }
+
+        Ok(tools)
+    }
+
+    /// 获取工具使用指南
+    pub async fn get_tool_guides(&self, tool_names: &[String]) -> Result<String> {
+        if tool_names.is_empty() {
+            return Ok(String::new());
+        }
+
+        let db = self.db.lock().await;
+        let mut guides = Vec::new();
+
+        for name in tool_names {
+            if let Some(cache) = db.get_tool_cache(name)? {
+                if let Some(guide) = &cache.usage_guide {
+                    if !guide.is_empty() {
+                        guides.push(format!("## {}\n{}", name, guide));
+                    }
+                }
+            }
+        }
+
+        Ok(guides.join("\n\n"))
+    }
+
+    /// 生成脚本
+    /// 使用 RAG 搜索相关工具，注入使用指南到 prompt
+    pub async fn generate_script(&self, user_input: &str) -> Result<Script> {
+        // 详细检查配置
+        let api_key = &self.settings.ai.api_key;
+        let api_key_env = std::env::var("JITA_API_KEY").ok();
+
+        tracing::info!("Checking API key config:");
+        tracing::info!("  - From settings: {}", if api_key.is_empty() { "EMPTY" } else { "SET" });
+        tracing::info!("  - From env (JITA_API_KEY): {}", if api_key_env.is_some() { "SET" } else { "NOT SET" });
+
+        // 如果设置了环境变量，优先使用
+        let effective_api_key = api_key_env.as_ref().unwrap_or(api_key);
+
+        if effective_api_key.is_empty() {
+            return Err(anyhow::anyhow!("没有有效的 API key。请在设置中配置 API key。"));
+        }
+
+        // 确保 agent_client 已初始化（如果通过环境变量设置了 key）
+        if self.agent_client.is_none() {
+            tracing::warn!("AgentClient not initialized but API key is available. Creating client now...");
+            // 这里我们不能重新创建 client，因为 App 结构已经固定
+            // 返回错误让用户重新启动或检查设置
+            return Err(anyhow::anyhow!("Agent 未初始化。请重启应用程序或检查设置中的 API key。"));
+        }
+
+        let client = self.agent_client.as_ref().unwrap();
+
+        tracing::debug!("generate_script called with user_input: {}", user_input);
+
+        // RAG: 搜索相关工具
+        let related_tools = self.search_related_tools(user_input).await?;
+        let tool_names: Vec<String> = related_tools.iter().map(|t| t.name.clone()).collect();
+        let tool_guide = self.get_tool_guides(&tool_names).await?;
+
+        // 获取工具摘要
+        let db = self.db.lock().await;
+        let all_tools = db.list_tool_cache()?;
+        drop(db);
+
+        let tools_summary = if all_tools.is_empty() {
+            "无可用工具".to_string()
+        } else {
+            all_tools
+                .iter()
+                .filter_map(|t| t.ai_summary.as_ref().map(|s| format!("- {}: {}", t.tool_name, s)))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+
+        // 构建上下文摘要
+        let context = ExecutionContext::new();
         let context_summary = format!(
             "工作目录: {}\n选中文件: {:?}",
             context.cwd.display(),
             context.selected_files
         );
 
-        // 构建提示词并调用 LLM
-        let system_prompt = client.build_system_prompt(&uv_summary, &context_summary);
-        let generated = client.generate_script(user_input, &system_prompt).await?;
+        // 构建 system prompt，注入工具使用指南
+        let system_prompt = client.build_system_prompt(&tools_summary, &context_summary, &tool_guide);
 
-        // 转换为脚本对象
-        let script = crate::llm::generated_script_to_script(generated)?;
+        let generated = client.generate_script_with_guides(user_input, &tools_summary, &context_summary, &tool_guide).await?;
 
-        // 存入数据库
-        {
-            let db = self.db.lock().await;
-            db.insert_script(&script)?;
-        }
+        let script = crate::agent::generated_script_to_script(generated)?;
+
+        let db = self.db.lock().await;
+        db.insert_script(&script)?;
 
         Ok(script)
     }
 
+    /// 生成脚本（旧接口，兼容外部调用）
+    pub async fn generate_script_legacy(&self, user_input: &str) -> Result<Script> {
+        self.generate_script(user_input).await
+    }
+
     /// 执行脚本
-    /// 创建任务并启动子进程
     pub async fn execute_script(
         &self,
         script: Script,
@@ -135,7 +238,6 @@ impl App {
     }
 
     /// 记录执行历史
-    /// 将执行结果写入数据库，并更新脚本使用次数
     pub async fn record_execution(
         &self,
         script_id: &str,
@@ -157,12 +259,10 @@ impl App {
         Ok(())
     }
 
-    /// 获取脚本上次执行的参数（用于预填）
+    /// 获取脚本上次执行的参数
     pub async fn get_last_params(&self, script_id: &str) -> Result<Option<serde_json::Value>> {
         let db = self.db.lock().await;
-        Ok(db
-            .get_last_execution(script_id)?
-            .map(|r| r.params_used))
+        Ok(db.get_last_execution(script_id)?.map(|r| r.params_used))
     }
 
     /// 列出所有脚本
@@ -177,3 +277,4 @@ impl App {
         db.get_script_by_alias(alias)
     }
 }
+

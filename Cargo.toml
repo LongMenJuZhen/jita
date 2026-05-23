@@ -50,6 +50,10 @@ fastembed = { version = "4.9", features = ["ort-download-binaries", "ort-load-dy
 # Image (for tray icon)
 png = "0.17"
 
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 # i18n
 fluent = "0.17.0"
 unic-langid = "0.9"

@@ -1,8 +1,7 @@
 // AI Agent 模块
 // 基于 rig crate 实现与 LLM 的交互
 // 负责构建 prompt、调用 LLM API、解析结构化响应
-// 主要用途: 错误修复循环（多轮对话）和高级 Agent 功能
-
+// rag的管理
 use crate::task_manager::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
 use anyhow::Result;
 use rig::prelude::*;
@@ -12,9 +11,8 @@ use rig::{
 };
 use serde::{Deserialize, Serialize};
 
-mod embedding;
 pub mod db;
-
+pub mod memory;
 /// 修复请求
 /// 用于 AI 修复失败脚本时的输入
 #[derive(Debug, Clone)]
@@ -86,10 +84,7 @@ impl AgentClient {
 
     /// 修复失败的脚本
     /// 发送原始脚本 + stderr + exit_code 给 AI，获取修复后的脚本
-    pub async fn repair_script(
-        &self,
-        request: RepairRequest,
-    ) -> Result<GeneratedScript> {
+    pub async fn repair_script(&self, request: RepairRequest) -> Result<GeneratedScript> {
         let stderr_truncated = if request.stderr.len() > 3000 {
             &request.stderr[..3000]
         } else {
@@ -119,10 +114,7 @@ impl AgentClient {
 {}
 
 请调用 generate_script 工具输出修复后的脚本。"#,
-            request.attempt,
-            request.original_script,
-            stderr_truncated,
-            request.exit_code
+            request.attempt, request.original_script, stderr_truncated, request.exit_code
         );
 
         let agent = self
@@ -139,11 +131,7 @@ impl AgentClient {
 
     /// 生成 uv 工具的 AI 摘要
     /// 输入工具的 --help 输出，返回一行描述
-    pub async fn summarize_uv_tool(
-        &self,
-        tool_name: &str,
-        help_text: &str,
-    ) -> Result<String> {
+    pub async fn summarize_uv_tool(&self, tool_name: &str, help_text: &str) -> Result<String> {
         let prompt = format!(
             r#"请为以下命令行工具生成一行中文描述（不超过 50 字）。
 
@@ -199,7 +187,10 @@ Help 输出:
             .build();
 
         let response = agent.prompt(&prompt).await?;
-        let alias = response.trim().to_lowercase().replace(|c: char| !c.is_alphanumeric(), "");
+        let alias = response
+            .trim()
+            .to_lowercase()
+            .replace(|c: char| !c.is_alphanumeric(), "");
         Ok(alias)
     }
 }

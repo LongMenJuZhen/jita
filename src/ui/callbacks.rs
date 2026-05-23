@@ -8,7 +8,7 @@ use tokio::sync::Mutex as TokioMutex;
 use crate::app::App;
 use crate::ui::asr::AsrManager;
 use crate::task_manager::execution::OutputLine;
-use crate::llm;
+use crate::agent;
 use crate::task_manager::script::{ParamDeclaration, Script};
 use crate::state::MainWindowState;
 use crate::ui::hotkey::HotkeyManager;
@@ -17,7 +17,7 @@ use crate::ui::i18n as ui_i18n;
 pub fn setup_callbacks(
     window: crate::ui::JitaWindow,
     app: Arc<TokioMutex<App>>,
-    _runtime: tokio::runtime::Handle,
+    runtime: tokio::runtime::Handle,
     asr_manager: Arc<TokioMutex<AsrManager>>,
     hotkey_manager: Option<HotkeyManager>,
 ) -> crate::ui::JitaWindow {
@@ -27,11 +27,13 @@ pub fn setup_callbacks(
     {
         let weak = window_weak.clone();
         let app = app.clone();
+        let rt = runtime.clone();
         window.on_submit_input(move |text: slint::SharedString| {
             let text = text.to_string();
             let weak = weak.clone();
             let app = app.clone();
-            tokio::spawn(async move {
+            let rt = rt.clone();
+            rt.spawn(async move {
                 {
                     let weak_gen = weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
@@ -97,10 +99,12 @@ pub fn setup_callbacks(
     {
         let weak = window_weak.clone();
         let app = app.clone();
+        let rt = runtime.clone();
         window.on_execute_script(move || {
             let weak = weak.clone();
             let app = app.clone();
-            tokio::spawn(async move {
+            let rt = rt.clone();
+            rt.spawn(async move {
                 let script = {
                     let app_guard = app.lock().await;
                     let state_guard = app_guard.state.lock().await;
@@ -128,10 +132,12 @@ pub fn setup_callbacks(
     {
         let weak = window_weak.clone();
         let app = app.clone();
+        let rt = runtime.clone();
         window.on_submit_params(move || {
             let weak = weak.clone();
             let app = app.clone();
-            tokio::spawn(async move {
+            let rt = rt.clone();
+            rt.spawn(async move {
                 let script = {
                     let app_guard = app.lock().await;
                     let state_guard = app_guard.state.lock().await;
@@ -167,10 +173,12 @@ pub fn setup_callbacks(
     {
         let weak = window_weak.clone();
         let app = app.clone();
+        let rt = runtime.clone();
         window.on_stop_script(move || {
             let weak = weak.clone();
             let app = app.clone();
-            tokio::spawn(async move {
+            let rt = rt.clone();
+            rt.spawn(async move {
                 let task_id = {
                     if let Some(w) = weak.upgrade() {
                         w.get_running_task_id().to_string()
@@ -248,10 +256,12 @@ pub fn setup_callbacks(
     {
         let weak = window_weak.clone();
         let manager = asr_manager.clone();
+        let rt_handle = runtime.clone();
         window.on_toggle_asr(move || {
             let weak = weak.clone();
             let manager = manager.clone();
-            tokio::spawn(async move {
+            let rt = rt_handle.clone();
+            rt.spawn(async move {
                 let mut asr = manager.lock().await;
 
                 if asr.is_listening() {
@@ -335,9 +345,11 @@ pub fn setup_callbacks(
     {
         let weak = window_weak.clone();
         let app = app.clone();
+        let rt = runtime.clone();
         window.on_save_settings(move || {
             let weak = weak.clone();
             let app = app.clone();
+            let rt = rt.clone();
 
             let (api_key, api_base, model) = if let Some(w) = weak.upgrade() {
                 (
@@ -349,7 +361,7 @@ pub fn setup_callbacks(
                 return;
             };
 
-            tokio::spawn(async move {
+            rt.spawn(async move {
                 let base_opt = if api_base.is_empty() { None } else { Some(api_base) };
 
                 let mut app_guard = app.lock().await;
@@ -363,10 +375,16 @@ pub fn setup_callbacks(
                     let _ = app_guard.settings_manager.set("ai_api_base", b);
                 }
 
-                app_guard.llm_client = if api_key.is_empty() {
+                app_guard.agent_client = if api_key.is_empty() {
                     None
                 } else {
-                    Some(llm::LlmClient::new(api_key, model, base_opt))
+                    match agent::AgentClient::new(api_key.clone(), Some(model.clone()), base_opt) {
+                        Ok(client) => Some(client),
+                        Err(e) => {
+                            tracing::warn!("Failed to create agent client: {}", e);
+                            None
+                        }
+                    }
                 };
 
                 drop(app_guard);
