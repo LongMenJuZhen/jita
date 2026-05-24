@@ -1,0 +1,36 @@
+{
+  "$schema": "https://v2.tauri.app/schema/config.schema.json",
+  "productName": "Jita",
+  "version": "0.1.0",
+  "identifier": "com.jita.app",
+  "build": {
+    "frontendDist": "./src-ui/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd src-ui && pnpm install && pnpm dev",
+    "beforeBuildCommand": "cd src-ui && pnpm install && pnpm build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Jita",
+        "width": 600,
+        "height": 500,
+        "resizable": true,
+        "center": true,
+        "minWidth": 400,
+        "minHeight": 300
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "windows": {
+      "allowDowngrades": true
+    }
+  }
+}

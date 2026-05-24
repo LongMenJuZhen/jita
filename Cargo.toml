@@ -1,15 +1,27 @@
 [package]
 name = "jita"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+
+[[bin]]
+name = "jita"
+path = "src/main.rs"
+
+[lib]
+name = "jita_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# UI
-slint = { version = "1.6",features = ["gettext"] }
+# Tauri v2
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
 
 # Audio / ASR
-sherpa-onnx = "1.13.1"
-cpal = "0.15"
+sherpa-onnx = { version = "1.13.1", optional = true }
+cpal = { version = "0.15", optional = true }
 
 # LLM
 rig = "0.37.0"
@@ -44,7 +56,6 @@ global-hotkey = "0.7"
 tray-icon = "0.19"
 
 # Embedding (与 rig-fastembed 保持一致版本，避免 ort 冲突)
-# 使用 ort-download-binaries feature 下载预编译的 ort 二进制
 fastembed = { version = "4.9", features = ["ort-download-binaries", "ort-load-dynamic"] }
 
 # Image (for tray icon)
@@ -63,12 +74,13 @@ tar = "0.4"
 bzip2 = "0.4"
 memvid-core = "2.0.139"
 
-[build-dependencies]
-slint-build = "1.6"
-
 [profile.dev]
 opt-level = 0
 lto = false
 
 [dev-dependencies]
 tempfile = "3.0"
+
+[features]
+default = ["asr"]
+asr = ["dep:sherpa-onnx", "dep:cpal"]

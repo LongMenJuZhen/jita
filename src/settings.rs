@@ -108,8 +108,20 @@ impl AppSettings {
         })
     }
 
+    /// 使用默认 SettingsManager 加载配置
+    pub fn load_from_default() -> Result<Self> {
+        let manager = SettingsManager::new();
+        Self::load(&manager)
+    }
+
+    /// 保存到 keychain（使用默认 SettingsManager）
+    pub fn save(&self) -> Result<()> {
+        let manager = SettingsManager::new();
+        Self::save_to(self, &manager)
+    }
+
     /// 保存到 keychain
-    pub fn save(&self, settings: &SettingsManager) -> Result<()> {
+    pub fn save_to(&self, settings: &SettingsManager) -> Result<()> {
         self.ai.save(settings)?;
         settings.set("hotkey", &self.hotkey)?;
         settings.set("asr_enabled", &self.asr_enabled.to_string())?;

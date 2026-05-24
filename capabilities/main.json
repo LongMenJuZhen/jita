@@ -1,0 +1,7 @@
+{
+  "$schema": "https://v2.tauri.app/schema/capability.schema.json",
+  "identifier": "main-capability",
+  "description": "Main window capability",
+  "windows": ["main"],
+  "permissions": ["core:default", "core:event:default"]
+}
