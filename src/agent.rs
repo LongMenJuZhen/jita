@@ -1,20 +1,82 @@
 // AI Agent 模块
 // 基于 rig crate 实现与 LLM 的交互
 // 负责构建 prompt、调用 LLM API、解析结构化响应
-// rag的管理
+// RAG: 命令行工具索引和语义搜索
+
 use crate::task_manager::script::{ParamDeclaration, Script, ScriptRuntime, ShellTarget};
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use rig::prelude::*;
 use rig::{
     completion::Prompt,
     providers::anthropic::{self, completion::CLAUDE_SONNET_4_6},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 pub mod db;
+pub mod embedding;
+pub mod env_familiar;
 pub mod memory;
+
+use embedding::embed_text;
+
+// =====================
+// 工具 Schema 定义
+// =====================
+
+/// 工具的 JSON Schema
+pub static TOOL_SCHEMA: Lazy<serde_json::Value> = Lazy::new(|| {
+    json!({
+        "type": "object",
+        "properties": {
+            "name": { "type": "string", "description": "脚本名称" },
+            "description": { "type": "string", "description": "脚本用途描述，用于后续语义匹配" },
+            "content": { "type": "string", "description": "完整脚本内容" },
+            "runtime": { "type": "string", "enum": ["python_pep723", "shell"], "description": "脚本运行方式" },
+            "shell_target": { "type": ["string", "null"], "enum": ["bash", "pwsh", "sh", null], "description": "shell 时的目标解释器" },
+            "params": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "label": { "type": "string" },
+                        "widget": {
+                            "type": "object",
+                            "properties": {
+                                "type": { "type": "string", "enum": ["text", "secret", "file", "directory", "select", "number", "toggle", "textarea"] }
+                            },
+                            "required": ["type"]
+                        },
+                        "required": { "type": "boolean" },
+                        "description": { "type": ["string", "null"] },
+                        "default": { "type": ["string", "null"] }
+                    },
+                    "required": ["name", "label", "widget", "required"]
+                }
+            }
+        },
+        "required": ["name", "description", "content", "runtime", "params"]
+    })
+});
+
+// =====================
+// 数据结构
+// =====================
+
+/// AI 返回的脚本结构
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeneratedScript {
+    pub name: String,
+    pub description: String,
+    pub content: String,
+    pub runtime: String,
+    pub shell_target: Option<String>,
+    pub params: Vec<ParamDeclaration>,
+}
+
 /// 修复请求
-/// 用于 AI 修复失败脚本时的输入
 #[derive(Debug, Clone)]
 pub struct RepairRequest {
     pub original_script: String,
@@ -23,8 +85,23 @@ pub struct RepairRequest {
     pub attempt: u8,
 }
 
+/// 命令行工具信息（用于 RAG）
+#[derive(Debug, Clone)]
+pub struct CliTool {
+    pub name: String,
+    pub description: String,
+    pub version: Option<String>,
+    pub help_text: String,
+    pub usage_guide: Option<String>,
+    pub embedding: Option<Vec<f32>>,
+}
+
+// =====================
+// Agent 客户端
+// =====================
+
 /// AI Agent 客户端
-/// 基于 rig crate 的 Anthropic provider
+#[derive(Clone)]
 pub struct AgentClient {
     client: anthropic::Client,
     model: String,
@@ -32,22 +109,113 @@ pub struct AgentClient {
 
 impl AgentClient {
     /// 创建 Agent 客户端
-    pub fn new(api_key: String, model: Option<String>) -> Result<Self> {
-        let client = anthropic::Client::builder().api_key(&api_key).build()?;
+    pub fn new(api_key: String, model: Option<String>, api_base: Option<String>) -> Result<Self> {
+        let mut builder = anthropic::Client::builder().api_key(&api_key);
+        if let Some(base) = api_base {
+            builder = builder.base_url(&base);
+        }
+        let client = builder.build()?;
         let model = model.unwrap_or_else(|| CLAUDE_SONNET_4_6.to_string());
 
         Ok(Self { client, model })
     }
 
-    /// 生成脚本（基于 rig 的实现）
-    /// 与 llm.rs 的 LlmClient 提供相同接口
+    /// 构建 System Prompt（包含工具使用指南）
+    pub fn build_system_prompt(
+        &self,
+        tools_summary: &str,
+        context_summary: &str,
+        tool_guides: &str,
+    ) -> String {
+        let platform = if cfg!(target_os = "windows") {
+            "Windows"
+        } else if cfg!(target_os = "macos") {
+            "macOS"
+        } else {
+            "Linux"
+        };
+
+        let guide_section = if tool_guides.is_empty() {
+            String::new()
+        } else {
+            format!("\n\n## 相关工具使用指南\n\n{}", tool_guides)
+        };
+
+        format!(
+            r#"你是 Jita 的脚本生成器。根据用户需求生成可执行脚本。
+
+当前平台: {platform}
+
+## 脚本规范
+
+**优先使用 PowerShell**（Windows）或 Bash（Unix）。只有当任务需要复杂的数据处理时才考虑 Python。
+
+### PowerShell 脚本示例
+```powershell
+param(
+    [string]$INPUT_PATH,
+    [int]$LIMIT = 10
+)
+
+$content = Get-Content -Path $env:INPUT_PATH
+$content | Select-Object -First $env:LIMIT
+```
+
+### Python 脚本（仅必要时使用）
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["rich"]
+# ///
+import os
+# 脚本正文...
+```
+参数通过环境变量读取：os.environ["PARAM_NAME"]
+
+## 参数声明
+
+每个参数必须包含:
+- name: 环境变量名（大写下划线）
+- label: 界面显示名称
+- widget.type: text | secret | file | directory | select | number | toggle | textarea
+- required: boolean
+- description: 可选说明
+- default: 可选默认值
+
+## 可用工具
+
+{tools_summary}
+{guide_section}
+
+## 执行上下文
+
+{context_summary}
+
+## 输出格式
+
+请使用 generate_script 工具输出结果。"#,
+        )
+    }
+
+    /// 生成脚本
     pub async fn generate_script(
         &self,
         user_input: &str,
-        uv_tools_summary: &str,
+        tools_summary: &str,
         context_summary: &str,
     ) -> Result<GeneratedScript> {
-        let system_prompt = build_system_prompt(uv_tools_summary, context_summary);
+        self.generate_script_with_guides(user_input, tools_summary, context_summary, "").await
+    }
+
+    /// 生成脚本（包含工具使用指南）
+    pub async fn generate_script_with_guides(
+        &self,
+        user_input: &str,
+        tools_summary: &str,
+        context_summary: &str,
+        tool_guides: &str,
+    ) -> Result<GeneratedScript> {
+        let system_prompt = self.build_system_prompt(tools_summary, context_summary, tool_guides);
 
         let agent = self
             .client
@@ -73,17 +241,14 @@ impl AgentClient {
 工具 schema:
 {}"#,
             user_input,
-            serde_json::to_string_pretty(&*crate::llm::TOOL_SCHEMA)?
+            serde_json::to_string_pretty(&*TOOL_SCHEMA)?
         );
 
         let response = agent.prompt(&tool_description).await?;
-
-        let generated: GeneratedScript = extract_script_from_response(&response)?;
-        Ok(generated)
+        extract_script_from_response(&response)
     }
 
     /// 修复失败的脚本
-    /// 发送原始脚本 + stderr + exit_code 给 AI，获取修复后的脚本
     pub async fn repair_script(&self, request: RepairRequest) -> Result<GeneratedScript> {
         let stderr_truncated = if request.stderr.len() > 3000 {
             &request.stderr[..3000]
@@ -96,7 +261,7 @@ impl AgentClient {
 
 ## 约束
 - 不得新增网络请求
-- 不得新增高权限系统调用（rm -rf、chmod 等）
+- 不得新增高权限系统调用
 - 参数声明接口必须保持兼容
 - 修复失败超过 2 次则不再自动重试（当前尝试: {}/2）
 
@@ -129,9 +294,8 @@ impl AgentClient {
         extract_script_from_response(&response)
     }
 
-    /// 生成 uv 工具的 AI 摘要
-    /// 输入工具的 --help 输出，返回一行描述
-    pub async fn summarize_uv_tool(&self, tool_name: &str, help_text: &str) -> Result<String> {
+    /// 生成命令行工具的 AI 摘要
+    pub async fn summarize_tool(&self, tool_name: &str, help_text: &str) -> Result<String> {
         let prompt = format!(
             r#"请为以下命令行工具生成一行中文描述（不超过 50 字）。
 
@@ -161,8 +325,51 @@ Help 输出:
         Ok(response.trim().to_string())
     }
 
+    /// 生成工具的使用指南
+    pub async fn generate_usage_guide(
+        &self,
+        tool_name: &str,
+        help_text: &str,
+    ) -> Result<String> {
+        let prompt = format!(
+            r#"请为以下命令行工具生成一段使用指南，帮助 AI 在生成脚本时正确调用该工具。
+
+工具名称: {}
+
+Help 输出:
+{}
+
+请用中文描述:
+1. 该工具的主要功能（1-2 句）
+2. 常用参数和用法示例（2-3 个例子）
+3. 在脚本中调用的方式
+
+输出格式示例:
+功能: xxx
+常用参数:
+  - xxx: xxx
+调用示例: xxx"#,
+            tool_name,
+            if help_text.len() > 4000 {
+                &help_text[..4000]
+            } else {
+                help_text
+            }
+        );
+
+        let agent = self
+            .client
+            .agent(&self.model)
+            .preamble("你是一个命令行工具专家和脚本编写助手。")
+            .temperature(0.3)
+            .max_tokens(500)
+            .build();
+
+        let response = agent.prompt(&prompt).await?;
+        Ok(response.trim().to_string())
+    }
+
     /// 生成脚本别名推荐
-    /// 基于脚本名称/描述生成拼音首字母缩写
     pub async fn suggest_alias(
         &self,
         script_name: &str,
@@ -195,86 +402,12 @@ Help 输出:
     }
 }
 
-/// AI 返回的脚本结构（与 llm.rs 中定义相同）
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GeneratedScript {
-    pub name: String,
-    pub description: String,
-    pub content: String,
-    pub runtime: String,
-    pub shell_target: Option<String>,
-    pub params: Vec<ParamDeclaration>,
-}
-
-/// 构建 System Prompt
-fn build_system_prompt(uv_tools_summary: &str, context_summary: &str) -> String {
-    let platform = if cfg!(target_os = "windows") {
-        "Windows"
-    } else if cfg!(target_os = "macos") {
-        "macOS"
-    } else {
-        "Linux"
-    };
-
-    let shell_syntax = if cfg!(target_os = "windows") {
-        "PowerShell 7+: $env:PARAM_NAME"
-    } else {
-        "Bash: $PARAM_NAME"
-    };
-
-    format!(
-        r#"你是 Jita 的脚本生成器。根据用户需求生成可执行脚本。
-
-当前平台: {platform}
-
-## 脚本规范
-
-Python 脚本必须使用 PEP 723 格式声明依赖：
-```python
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["rich"]
-# ///
-import os
-# 脚本正文...
-```
-参数通过环境变量读取：os.environ["PARAM_NAME"]
-
-Shell 脚本参数读取: {shell_syntax}
-
-## 参数声明
-
-每个参数必须包含:
-- name: 环境变量名（大写下划线）
-- label: 界面显示名称
-- widget.type: text | secret | file | directory | select | number | toggle | textarea
-- required: boolean
-- description: 可选说明
-- default: 可选默认值
-
-## 可用工具
-
-{uv_tools_summary}
-
-## 执行上下文
-
-{context_summary}
-
-## 输出格式
-
-请使用 generate_script 工具输出结果。"#,
-    )
-}
-
 /// 从 LLM 响应中提取脚本 JSON
-/// rig 返回纯文本，需要从中提取 JSON 块
 fn extract_script_from_response(response: &str) -> Result<GeneratedScript> {
-    // 尝试直接解析整个响应为 JSON
     if let Ok(script) = serde_json::from_str::<GeneratedScript>(response) {
         return Ok(script);
     }
 
-    // 尝试从 markdown 代码块中提取 JSON
     if let Some(start) = response.find("```json") {
         let after_start = &response[start + 7..];
         if let Some(end) = after_start.find("```") {
@@ -285,7 +418,6 @@ fn extract_script_from_response(response: &str) -> Result<GeneratedScript> {
         }
     }
 
-    // 尝试从任意代码块中提取
     if let Some(start) = response.find('{') {
         if let Some(end) = response.rfind('}') {
             let json_str = &response[start..=end];
@@ -298,7 +430,7 @@ fn extract_script_from_response(response: &str) -> Result<GeneratedScript> {
     anyhow::bail!("无法从响应中解析脚本: {}", response)
 }
 
-/// 将 GeneratedScript 转换为 Script 模型（复用 llm.rs 的逻辑）
+/// 将 GeneratedScript 转换为 Script 模型
 pub fn generated_script_to_script(generated: GeneratedScript) -> Result<Script> {
     let runtime = match generated.runtime.as_str() {
         "python_pep723" => ScriptRuntime::PythonPep723,
@@ -319,4 +451,37 @@ pub fn generated_script_to_script(generated: GeneratedScript) -> Result<Script> 
     script.params_schema = generated.params;
 
     Ok(script)
+}
+
+// =====================
+// RAG 工具搜索
+// =====================
+
+/// 在工具嵌入中搜索相关工具
+pub fn search_tools(
+    query: &str,
+    tools: &[(String, String, Vec<f32>)],
+    top_k: usize,
+) -> Vec<(String, String, f32)> {
+    let query_emb = match embed_text(query) {
+        Ok(emb) => emb,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut results: Vec<(String, String, f32)> = tools
+        .iter()
+        .filter_map(|(name, desc, emb)| {
+            let sim = embedding::cosine_similarity(&query_emb, emb);
+            if sim >= embedding::similarity_threshold() {
+                Some((name.clone(), desc.clone(), sim))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    results.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+    results.truncate(top_k);
+
+    results
 }
