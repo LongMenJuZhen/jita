@@ -6,7 +6,6 @@ pub mod hotkey;
 pub mod i18n;
 pub mod tray;
 mod asr;
-mod generative;
 
 use slint::ComponentHandle;
 use std::sync::Arc;

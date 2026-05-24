@@ -44,7 +44,6 @@ impl App {
             None
         } else {
             tracing::info!("Creating AgentClient with API key length: {}", settings.ai.api_key.len());
-            tracing::info!("API key first 8 chars: {}", &settings.ai.api_key[..8.min(settings.ai.api_key.len())]);
             match AgentClient::new(
                 settings.ai.api_key.clone(),
                 Some(settings.ai.model.clone()),

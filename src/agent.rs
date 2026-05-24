@@ -17,7 +17,6 @@ use serde_json::json;
 pub mod db;
 pub mod embedding;
 pub mod env_familiar;
-pub mod memory;
 
 use embedding::embed_text;
 

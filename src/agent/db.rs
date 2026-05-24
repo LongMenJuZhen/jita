@@ -7,10 +7,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use std::path::PathBuf;
 
-/// 解析日期时间字符串，解析失败时返回当前时间
-fn parse_datetime(s: &str) -> DateTime<Utc> {
-    s.parse().unwrap_or_else(|_| Utc::now())
-}
+use crate::agent::embedding::{bytes_to_embedding, embedding_to_bytes};
 
 /// 工具缓存（扩展版，包含嵌入和使用指南）
 #[derive(Debug, Clone)]
@@ -311,11 +308,7 @@ impl Database {
         usage_guide: &str,
         embedding: Option<&[f32]>,
     ) -> Result<()> {
-        let embedding_bytes: Option<Vec<u8>> = embedding.map(|emb| {
-            emb.iter()
-                .flat_map(|f| f.to_le_bytes())
-                .collect()
-        });
+        let embedding_bytes: Option<Vec<u8>> = embedding.map(embedding_to_bytes);
 
         self.conn.execute(
             r#"
@@ -371,15 +364,7 @@ impl Database {
             let summary: Option<String> = row.get(1)?;
             let embedding_bytes: Option<Vec<u8>> = row.get(2)?;
 
-            let embedding = embedding_bytes.map(|bytes| {
-                bytes
-                    .chunks_exact(4)
-                    .map(|chunk| {
-                        let arr: [u8; 4] = [chunk[0], chunk[1], chunk[2], chunk[3]];
-                        f32::from_le_bytes(arr)
-                    })
-                    .collect()
-            });
+            let embedding = embedding_bytes.and_then(|bytes| bytes_to_embedding(&bytes).ok());
 
             Ok((name, summary.unwrap_or_default(), embedding.unwrap_or_default()))
         })?;
@@ -467,15 +452,7 @@ impl Database {
     /// 将数据库行转换为 ToolCache 对象
     fn row_to_tool_cache(&self, row: &rusqlite::Row) -> Result<ToolCache, rusqlite::Error> {
         let embedding_bytes: Option<Vec<u8>> = row.get(5)?;
-        let embedding = embedding_bytes.map(|bytes| {
-            bytes
-                .chunks_exact(4)
-                .map(|chunk| {
-                    let arr: [u8; 4] = [chunk[0], chunk[1], chunk[2], chunk[3]];
-                    f32::from_le_bytes(arr)
-                })
-                .collect()
-        });
+        let embedding = embedding_bytes.and_then(|bytes| bytes_to_embedding(&bytes).ok());
 
         Ok(ToolCache {
             tool_name: row.get("tool_name")?,
