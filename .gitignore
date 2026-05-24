@@ -2,3 +2,20 @@
 asset/*
 .claude/
 .idea/
+src-ui/node_modules/
+src-ui/dist/
+src-ui/dist-*
+
+# Windows
+*.ico
+*.dll
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+*.code-workspace

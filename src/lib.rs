@@ -6,4 +6,5 @@ pub mod commands;
 pub mod settings;
 pub mod state;
 pub mod task_manager;
+pub mod ui;
 pub mod utils;

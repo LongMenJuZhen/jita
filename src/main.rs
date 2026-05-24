@@ -10,6 +10,7 @@ use jita_lib::agent::AgentModule;
 use jita_lib::commands::AppState;
 use jita_lib::settings::AppSettings;
 use jita_lib::task_manager::TaskManager;
+use jita_lib::ui::asr::AsrManager;
 use jita_lib::utils;
 
 fn main() {
@@ -37,10 +38,12 @@ fn main() {
             };
 
             let task_manager = TaskManager::new();
+            let asr_manager = AsrManager::new(utils::models_dir());
 
             let app_state = AppState {
                 agent: Arc::new(Mutex::new(agent)),
                 task_manager: Arc::new(Mutex::new(task_manager)),
+                asr_manager: Arc::new(Mutex::new(asr_manager)),
                 uv_available,
             };
 

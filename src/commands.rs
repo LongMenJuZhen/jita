@@ -10,6 +10,7 @@ use crate::settings::AppSettings;
 use crate::task_manager::script::{ParamDeclaration, Script, ScriptRuntime};
 use crate::task_manager::execution::OutputLine as TaskOutputLine;
 use crate::task_manager::TaskManager;
+use crate::ui::asr::AsrManager;
 use serde::{Deserialize, Serialize};
 
 /// 应用状态
@@ -17,6 +18,7 @@ use serde::{Deserialize, Serialize};
 pub struct AppState {
     pub agent: Arc<Mutex<AgentModule>>,
     pub task_manager: Arc<Mutex<TaskManager>>,
+    pub asr_manager: Arc<Mutex<AsrManager>>,
     pub uv_available: bool,
 }
 
@@ -340,11 +342,39 @@ pub fn check_uv() -> bool {
 #[cfg(feature = "asr")]
 #[tauri::command]
 pub async fn toggle_asr(
-    _app: AppHandle,
-    _state: State<'_, AppState>,
+    app: AppHandle,
+    state: State<'_, AppState>,
 ) -> Result<bool, String> {
-    // TODO: 实现 ASR 功能
-    Err("ASR 功能暂未实现".to_string())
+    let mut asr = state.asr_manager.lock().await;
+
+    // 如果已加载模型，检查是否正在监听
+    if asr.is_loaded() {
+        if asr.is_listening() {
+            asr.stop();
+            return Ok(false);
+        }
+    } else {
+        // 预加载模型
+        let app_for_status = app.clone();
+        asr.preload(move |status| {
+            let _ = app_for_status.emit("asr_status", status);
+        }).map_err(|e| e.to_string())?;
+    }
+
+    // 开始监听
+    let app_for_status = app.clone();
+    let app_for_text = app.clone();
+
+    asr.start_listening(
+        move |status| {
+            let _ = app_for_status.emit("asr_status", status);
+        },
+        move |text| {
+            let _ = app_for_text.emit("asr_text", text);
+        },
+    ).map_err(|e| e.to_string())?;
+
+    Ok(true)
 }
 
 #[cfg(not(feature = "asr"))]
