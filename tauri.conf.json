@@ -5,9 +5,7 @@
   "identifier": "com.jita.app",
   "build": {
     "frontendDist": "./src-ui/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "cd src-ui && pnpm install && pnpm dev",
-    "beforeBuildCommand": "cd src-ui && pnpm install && pnpm build"
+    "devUrl": "http://localhost:5173"
   },
   "app": {
     "withGlobalTauri": true,
