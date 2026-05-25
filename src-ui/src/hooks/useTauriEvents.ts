@@ -45,11 +45,11 @@ export function useTauriEvents() {
 
     const unlistenAsr = listen<string>('asr_text', (event) => {
       console.log('ASR text:', event.payload);
-      const { inputText } = useAppStore.getState();
+      const { inputText, setInputText } = useAppStore.getState();
       if (inputText) {
-        useAppStore.getState().setInputText(inputText + ' ' + event.payload);
+        setInputText(inputText + ' ' + event.payload);
       } else {
-        useAppStore.getState().setInputText(event.payload);
+        setInputText(event.payload);
       }
     });
 

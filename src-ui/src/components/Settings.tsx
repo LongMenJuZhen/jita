@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store/appStore';
 import type { AppSettings } from '../types';
 
 export function Settings() {
+  const { t, i18n } = useTranslation();
   const { settings, updateSettings, closeSettings } = useAppStore();
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [selectedLang, setSelectedLang] = useState(i18n.language);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -13,6 +16,12 @@ export function Settings() {
 
   const handleChange = (key: keyof AppSettings, value: string | boolean) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    setSelectedLang(lang);
+    i18n.changeLanguage(lang);
+    localStorage.setItem('i18nextLng', lang);
   };
 
   const handleSave = async () => {
@@ -33,12 +42,33 @@ export function Settings() {
     }
   };
 
+  const languages = [
+    { code: 'zh', name: t('languages.zh') },
+    { code: 'en', name: t('languages.en') },
+    { code: 'ja', name: t('languages.ja') },
+  ];
+
   return (
     <div className="settings-panel">
-      <h2>设置</h2>
+      <h2>{t('settings.title')}</h2>
 
       <div className="settings-row">
-        <label>API Key</label>
+        <label>{t('settings.language')}</label>
+        <div className="language-selector">
+          {languages.map((lang) => (
+            <button
+              key={lang.code}
+              className={`lang-btn ${selectedLang === lang.code ? 'active' : ''}`}
+              onClick={() => handleLanguageChange(lang.code)}
+            >
+              {lang.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-row">
+        <label>{t('settings.apiKey')}</label>
         <input
           type="password"
           value={localSettings.api_key}
@@ -47,17 +77,17 @@ export function Settings() {
       </div>
 
       <div className="settings-row">
-        <label>API Base URL</label>
+        <label>{t('settings.apiBase')}</label>
         <input
           type="text"
           value={localSettings.api_base || ''}
           onChange={(e) => handleChange('api_base', e.target.value)}
-          placeholder="可选"
+          placeholder={t('settings.apiBasePlaceholder')}
         />
       </div>
 
       <div className="settings-row">
-        <label>模型</label>
+        <label>{t('settings.model')}</label>
         <input
           type="text"
           value={localSettings.model}
@@ -66,27 +96,27 @@ export function Settings() {
       </div>
 
       <div className="settings-row">
-        <label>ASR 模型路径</label>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <label>{t('settings.asrModel')}</label>
+        <div className="input-with-btn">
           <input
             type="text"
             value={localSettings.asr_model_path || ''}
             onChange={(e) => handleChange('asr_model_path', e.target.value)}
             readOnly
-            placeholder="点击下方按钮打开"
+            placeholder={t('settings.openFolder')}
           />
           <button className="settings-btn" onClick={openModelsFolder}>
-            打开
+            📁 {t('settings.openFolder')}
           </button>
         </div>
       </div>
 
       <div className="settings-actions">
         <button className="save" onClick={handleSave}>
-          保存
+          💾 {t('settings.save')}
         </button>
         <button className="cancel" onClick={closeSettings}>
-          取消
+          {t('settings.cancel')}
         </button>
       </div>
     </div>

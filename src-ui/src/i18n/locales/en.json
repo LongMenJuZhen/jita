@@ -1,0 +1,66 @@
+{
+  "app": {
+    "name": "Jita",
+    "tagline": "Natural Language Script Generation"
+  },
+  "common": {
+    "generate": "Generate Script",
+    "execute": "Execute",
+    "stop": "Stop",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "confirm": "Confirm",
+    "success": "Success",
+    "error": "Error",
+    "loading": "Loading..."
+  },
+  "input": {
+    "placeholder": "Describe your request, e.g.: convert all jpg to png in current directory",
+    "generating": "AI is generating...",
+    "submit": "Generate Script"
+  },
+  "preview": {
+    "title": "Script Preview",
+    "execute": "Execute Script",
+    "stop": "Stop",
+    "discard": "Discard",
+    "close": "Close"
+  },
+  "params": {
+    "title": "Fill Parameters",
+    "submit": "Submit & Execute",
+    "required": "Required"
+  },
+  "settings": {
+    "title": "Settings",
+    "apiKey": "API Key",
+    "apiBase": "API Base URL",
+    "apiBasePlaceholder": "Optional, e.g. https://api.openai.com",
+    "model": "Model",
+    "asrModel": "ASR Model Path",
+    "openFolder": "Open",
+    "language": "Language",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "status": {
+    "uvUnavailable": "uv not detected. Script execution is unavailable. Please install uv.",
+    "generating": "Generating script...",
+    "executing": "Executing...",
+    "success": "Execution successful",
+    "failed": "Execution failed",
+    "error": "Execution error",
+    "asrLoading": "Loading ASR model...",
+    "asrReady": "ASR model ready",
+    "asrListening": "Listening...",
+    "asrDetected": "Speech detected...",
+    "asrStopped": "ASR stopped",
+    "toolIndexing": "Indexing tools..."
+  },
+  "languages": {
+    "zh": "简体中文",
+    "en": "English",
+    "ja": "日本語"
+  }
+}

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store/appStore';
 
 export function ParamForm() {
+  const { t } = useTranslation();
   const { script, params, setParams, setState, setStatus } = useAppStore();
   const [localParams, setLocalParams] = useState<Record<string, string>>(params);
 
@@ -15,6 +17,7 @@ export function ParamForm() {
   const handleSubmit = async () => {
     setParams(localParams);
     setState('reviewing');
+    setStatus(t('status.executing'));
 
     try {
       const result = await invoke<{ success: boolean; task_id?: string; error?: string }>('execute_script', {
@@ -23,10 +26,10 @@ export function ParamForm() {
       });
 
       if (!result.success) {
-        setStatus(result.error || '执行失败');
+        setStatus(result.error || t('status.failed'));
       }
     } catch (e) {
-      setStatus(`执行错误: ${e}`);
+      setStatus(`${t('status.error')}: ${e}`);
     }
   };
 
@@ -36,14 +39,14 @@ export function ParamForm() {
 
   return (
     <div className="param-form">
-      <h2>填写参数</h2>
+      <h2>{t('params.title')}</h2>
 
       <div className="param-list">
         {script.params_schema.slice(0, 6).map((param) => (
           <div key={param.name} className="param-field">
             <label>
               {param.label}
-              {param.required && ' *'}
+              {param.required && <span className="required"> *</span>}
             </label>
             <input
               type="text"
@@ -57,10 +60,10 @@ export function ParamForm() {
 
       <div className="action-buttons">
         <button className="action-btn execute" onClick={handleSubmit}>
-          提交并执行
+          ▶ {t('params.submit')}
         </button>
         <button className="action-btn cancel" onClick={handleCancel}>
-          取消
+          {t('common.cancel')}
         </button>
       </div>
     </div>

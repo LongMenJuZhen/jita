@@ -1,0 +1,66 @@
+{
+  "app": {
+    "name": "Jita",
+    "tagline": "自然言語スクリプト生成"
+  },
+  "common": {
+    "generate": "スクリプト生成",
+    "execute": "実行",
+    "stop": "停止",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "close": "閉じる",
+    "confirm": "確認",
+    "success": "成功",
+    "error": "エラー",
+    "loading": "読み込み中..."
+  },
+  "input": {
+    "placeholder": "リクエストを描述してください、例：現在のディレクトリ内のすべてのjpgをpngに変換",
+    "generating": "AI が生成中...",
+    "submit": "スクリプト生成"
+  },
+  "preview": {
+    "title": "スクリプトプレビュー",
+    "execute": "スクリプト実行",
+    "stop": "停止",
+    "discard": "破棄",
+    "close": "閉じる"
+  },
+  "params": {
+    "title": "パラメータを入力",
+    "submit": "提交並実行",
+    "required": "必須"
+  },
+  "settings": {
+    "title": "設定",
+    "apiKey": "API Key",
+    "apiBase": "API Base URL",
+    "apiBasePlaceholder": "オプション、例：https://api.openai.com",
+    "model": "モデル",
+    "asrModel": "ASR モデルパス",
+    "openFolder": "開く",
+    "language": "言語",
+    "save": "保存",
+    "cancel": "キャンセル"
+  },
+  "status": {
+    "uvUnavailable": "uv が検出されません。スクリプト実行は利用できません。uv をインストールしてください。",
+    "generating": "スクリプト生成中...",
+    "executing": "実行中...",
+    "success": "実行成功",
+    "failed": "実行失敗",
+    "error": "実行エラー",
+    "asrLoading": "ASR モデル読み込み中...",
+    "asrReady": "ASR モデル準備完了",
+    "asrListening": ".listen...",
+    "asrDetected": "音声検出中...",
+    "asrStopped": "ASR 停止",
+    "toolIndexing": "ツールインデックス中..."
+  },
+  "languages": {
+    "zh": "简体中文",
+    "en": "English",
+    "ja": "日本語"
+  }
+}

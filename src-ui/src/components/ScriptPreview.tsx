@@ -1,14 +1,25 @@
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store/appStore';
 
 export function ScriptPreview() {
-  const { script, scriptContent, isExecuting, runningTaskId, setState, setExecuting, setTaskId, setStatus } = useAppStore();
+  const { t } = useTranslation();
+  const {
+    script,
+    scriptContent,
+    isExecuting,
+    runningTaskId,
+    setState,
+    setExecuting,
+    setTaskId,
+    setStatus,
+  } = useAppStore();
 
   if (!script) return null;
 
   const handleExecute = async () => {
     setExecuting(true);
-    setStatus('正在执行...');
+    setStatus(t('status.executing'));
 
     try {
       const result = await invoke<{ success: boolean; task_id?: string; error?: string }>('execute_script', {
@@ -19,11 +30,11 @@ export function ScriptPreview() {
       if (result.success && result.task_id) {
         setTaskId(result.task_id);
       } else {
-        setStatus(result.error || '执行失败');
+        setStatus(result.error || t('status.failed'));
         setExecuting(false);
       }
     } catch (e) {
-      setStatus(`执行错误: ${e}`);
+      setStatus(`${t('status.error')}: ${e}`);
       setExecuting(false);
     }
   };
@@ -54,15 +65,15 @@ export function ScriptPreview() {
       <div className="action-buttons">
         {!isExecuting ? (
           <button className="action-btn execute" onClick={handleExecute}>
-            执行
+            ▶ {t('preview.execute')}
           </button>
         ) : (
           <button className="action-btn stop" onClick={handleStop}>
-            停止
+            ⏹ {t('preview.stop')}
           </button>
         )}
         <button className="action-btn cancel" onClick={handleCancel}>
-          {isExecuting ? '关闭' : '放弃'}
+          {isExecuting ? t('preview.close') : t('preview.discard')}
         </button>
       </div>
     </div>

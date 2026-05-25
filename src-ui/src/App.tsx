@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from './store/appStore';
 import { useTauriEvents } from './hooks/useTauriEvents';
@@ -8,6 +9,7 @@ import { ParamForm } from './components/ParamForm';
 import { Settings } from './components/Settings';
 
 function App() {
+  const { t } = useTranslation();
   const {
     currentState,
     isSettingsVisible,
@@ -70,13 +72,13 @@ function App() {
     <div className="app">
       {!uvAvailable && (
         <div className="uv-warning">
-          未检测到 uv，脚本执行功能不可用。请安装 uv。
+          {t('status.uvUnavailable')}
         </div>
       )}
 
       <div className="header">
         <button className="settings-btn" onClick={openSettings}>
-          ⚙ 设置
+          ⚙ {t('settings.title')}
         </button>
       </div>
 

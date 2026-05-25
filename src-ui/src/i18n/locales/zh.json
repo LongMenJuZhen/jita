@@ -1,0 +1,66 @@
+{
+  "app": {
+    "name": "Jita",
+    "tagline": "自然语言生成脚本"
+  },
+  "common": {
+    "generate": "生成脚本",
+    "execute": "执行",
+    "stop": "停止",
+    "cancel": "取消",
+    "save": "保存",
+    "close": "关闭",
+    "confirm": "确认",
+    "success": "成功",
+    "error": "错误",
+    "loading": "加载中..."
+  },
+  "input": {
+    "placeholder": "描述你的需求，例如：把当前目录所有 jpg 转成 png",
+    "generating": "AI 生成中...",
+    "submit": "生成脚本"
+  },
+  "preview": {
+    "title": "脚本预览",
+    "execute": "执行脚本",
+    "stop": "停止",
+    "discard": "放弃",
+    "close": "关闭"
+  },
+  "params": {
+    "title": "填写参数",
+    "submit": "提交并执行",
+    "required": "必填"
+  },
+  "settings": {
+    "title": "设置",
+    "apiKey": "API Key",
+    "apiBase": "API Base URL",
+    "apiBasePlaceholder": "可选，如 https://api.openai.com",
+    "model": "模型",
+    "asrModel": "ASR 模型路径",
+    "openFolder": "打开",
+    "language": "语言",
+    "save": "保存",
+    "cancel": "取消"
+  },
+  "status": {
+    "uvUnavailable": "未检测到 uv，脚本执行功能不可用。请安装 uv。",
+    "generating": "正在生成脚本...",
+    "executing": "正在执行...",
+    "success": "执行成功",
+    "failed": "执行失败",
+    "error": "执行错误",
+    "asrLoading": "正在加载 ASR 模型...",
+    "asrReady": "ASR 模型已就绪",
+    "asrListening": "正在监听...",
+    "asrDetected": "检测到语音...",
+    "asrStopped": "ASR 已停止",
+    "toolIndexing": "正在索引工具..."
+  },
+  "languages": {
+    "zh": "简体中文",
+    "en": "English",
+    "ja": "日本語"
+  }
+}

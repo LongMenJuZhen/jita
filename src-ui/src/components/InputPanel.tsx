@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store/appStore';
 
 export function InputPanel() {
+  const { t } = useTranslation();
   const {
     currentState,
     setState,
@@ -11,7 +13,6 @@ export function InputPanel() {
     setAsrActive,
     inputText,
     setInputText,
-    statusText,
   } = useAppStore();
 
   const isGenerating = currentState === 'generating';
@@ -20,7 +21,7 @@ export function InputPanel() {
     if (!inputText.trim()) return;
 
     setState('generating');
-    setStatus('正在生成脚本...');
+    setStatus(t('status.generating'));
 
     try {
       const result = await invoke<{ success: boolean; script?: unknown; error?: string }>('generate_script', { text: inputText });
@@ -30,11 +31,11 @@ export function InputPanel() {
         const script = result.script as { params_schema: unknown[] };
         setState(script.params_schema?.length > 0 ? 'param_input' : 'reviewing');
       } else {
-        setStatus(result.error || '生成失败');
+        setStatus(result.error || t('common.error'));
         setState('input');
       }
     } catch (e) {
-      setStatus(`生成错误: ${e}`);
+      setStatus(`${t('common.error')}: ${e}`);
       setState('input');
     }
   };
@@ -51,13 +52,13 @@ export function InputPanel() {
       await invoke('toggle_asr');
       setAsrActive(!asrActive);
       if (!asrActive) {
-        setStatus('正在监听...');
+        setStatus(t('status.asrListening'));
       } else {
         setStatus('');
       }
     } catch (e) {
       console.error('ASR toggle failed:', e);
-      setStatus(`ASR 错误: ${e}`);
+      setStatus(`ASR ${t('common.error')}: ${e}`);
     }
   };
 
@@ -67,7 +68,7 @@ export function InputPanel() {
         <input
           type="text"
           className="input-field"
-          placeholder="描述你的需求，例如：把当前目录所有 jpg 转成 png"
+          placeholder={t('input.placeholder')}
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -77,7 +78,7 @@ export function InputPanel() {
           className={`mic-btn ${asrActive ? 'active' : ''}`}
           onClick={toggleAsr}
           disabled={isGenerating}
-          title={asrActive ? '停止录音' : '开始语音输入'}
+          title={asrActive ? t('status.asrStopped') : '🎤'}
         >
           {asrActive ? '🔴' : '🎤'}
         </button>
@@ -85,14 +86,14 @@ export function InputPanel() {
 
       {!isGenerating && inputText && (
         <button className="submit-btn" onClick={handleSubmit}>
-          ✨ 生成脚本
+          ✨ {t('input.submit')}
         </button>
       )}
 
       {isGenerating && (
         <div className="generating-indicator">
           <span className="spinner"></span>
-          <span>AI 生成中...</span>
+          <span>{t('input.generating')}</span>
         </div>
       )}
     </div>
