@@ -23,7 +23,6 @@ interface AppState {
   asrActive: boolean;
 
   // 设置
-  isSettingsVisible: boolean;
   settings: AppSettings;
 
   // 系统状态
@@ -40,8 +39,6 @@ interface AppState {
   setTaskId: (taskId: string) => void;
   setStatus: (text: string) => void;
   setAsrActive: (active: boolean) => void;
-  openSettings: () => void;
-  closeSettings: () => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   setUvAvailable: (available: boolean) => void;
   setInputText: (text: string) => void;
@@ -56,7 +53,6 @@ const initialState = {
   runningTaskId: '',
   params: {},
   asrActive: false,
-  isSettingsVisible: false,
   settings: {
     api_key: '',
     api_base: undefined,
@@ -99,10 +95,6 @@ export const useAppStore = create<AppState>((set) => ({
   setStatus: (text) => set({ statusText: text }),
 
   setAsrActive: (active) => set({ asrActive: active }),
-
-  openSettings: () => set({ isSettingsVisible: true }),
-
-  closeSettings: () => set({ isSettingsVisible: false }),
 
   updateSettings: (settings) => set((state) => ({
     settings: { ...state.settings, ...settings },

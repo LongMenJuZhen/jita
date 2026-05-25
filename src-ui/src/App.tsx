@@ -6,22 +6,27 @@ import { useTauriEvents } from './hooks/useTauriEvents';
 import { InputPanel } from './components/InputPanel';
 import { ScriptPreview } from './components/ScriptPreview';
 import { ParamForm } from './components/ParamForm';
-import { Settings } from './components/Settings';
 
 function App() {
   const { t } = useTranslation();
   const {
     currentState,
-    isSettingsVisible,
     uvAvailable,
     statusText,
-    openSettings,
     updateSettings,
     setUvAvailable,
     asrActive,
   } = useAppStore();
 
   useTauriEvents();
+
+  const openSettings = async () => {
+    try {
+      await invoke('open_settings_window');
+    } catch (e) {
+      console.error('Failed to open settings:', e);
+    }
+  };
 
   useEffect(() => {
     const initApp = async () => {
@@ -63,8 +68,8 @@ function App() {
   const getStatusIcon = () => {
     if (asrActive) return '🎤';
     if (currentState === 'generating') return '✨';
-    if (statusText?.includes('成功')) return '✓';
-    if (statusText?.includes('失败') || statusText?.includes('错误')) return '✗';
+    if (statusText?.includes('成功') || statusText?.includes('Success')) return '✓';
+    if (statusText?.includes('失败') || statusText?.includes('错误') || statusText?.includes('Error') || statusText?.includes('failed')) return '✗';
     return '·';
   };
 
@@ -83,7 +88,7 @@ function App() {
       </div>
 
       <div className="main-content">
-        {isSettingsVisible ? <Settings /> : renderMainContent()}
+        {renderMainContent()}
       </div>
 
       {statusText && (

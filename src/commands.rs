@@ -382,3 +382,34 @@ pub async fn toggle_asr(
 pub async fn toggle_asr(_app: AppHandle, _state: State<'_, AppState>) -> Result<bool, String> {
     Err("ASR 功能未启用，请使用 --features asr 重新编译".to_string())
 }
+
+/// 打开设置窗口
+#[tauri::command]
+pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+
+    // 检查是否已存在设置窗口
+    if app.get_webview_window("settings").is_some() {
+        // 如果已存在，聚焦并返回
+        if let Some(window) = app.get_webview_window("settings") {
+            let _ = window.set_focus();
+        }
+        return Ok(());
+    }
+
+    // 创建新窗口
+    let settings_window = tauri::WebviewWindowBuilder::new(
+        &app,
+        "settings",
+        tauri::WebviewUrl::App("settings/settings.html".into()),
+    )
+    .title("Jita - Settings")
+    .inner_size(520.0, 580.0)
+    .resizable(false)
+    .center()
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    let _ = settings_window.set_focus();
+    Ok(())
+}

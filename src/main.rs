@@ -69,6 +69,7 @@ fn main() {
             jita_lib::commands::open_models_folder,
             jita_lib::commands::check_uv,
             jita_lib::commands::toggle_asr,
+            jita_lib::commands::open_settings_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
