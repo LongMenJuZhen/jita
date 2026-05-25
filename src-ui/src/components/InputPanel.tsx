@@ -2,7 +2,19 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store/appStore';
 
 export function InputPanel() {
-  const { currentState, setState, setStatus, setScript, asrActive, setAsrActive, inputText, setInputText } = useAppStore();
+  const {
+    currentState,
+    setState,
+    setStatus,
+    setScript,
+    asrActive,
+    setAsrActive,
+    inputText,
+    setInputText,
+    statusText,
+  } = useAppStore();
+
+  const isGenerating = currentState === 'generating';
 
   const handleSubmit = async () => {
     if (!inputText.trim()) return;
@@ -38,8 +50,14 @@ export function InputPanel() {
     try {
       await invoke('toggle_asr');
       setAsrActive(!asrActive);
+      if (!asrActive) {
+        setStatus('正在监听...');
+      } else {
+        setStatus('');
+      }
     } catch (e) {
       console.error('ASR toggle failed:', e);
+      setStatus(`ASR 错误: ${e}`);
     }
   };
 
@@ -53,25 +71,29 @@ export function InputPanel() {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={currentState === 'generating'}
+          disabled={isGenerating}
         />
         <button
           className={`mic-btn ${asrActive ? 'active' : ''}`}
           onClick={toggleAsr}
-          disabled={currentState === 'generating'}
+          disabled={isGenerating}
+          title={asrActive ? '停止录音' : '开始语音输入'}
         >
-          Mic
+          {asrActive ? '🔴' : '🎤'}
         </button>
       </div>
 
-      {currentState === 'input' && inputText && (
+      {!isGenerating && inputText && (
         <button className="submit-btn" onClick={handleSubmit}>
-          生成脚本
+          ✨ 生成脚本
         </button>
       )}
 
-      {currentState === 'generating' && (
-        <p className="generating-text">AI 生成中...</p>
+      {isGenerating && (
+        <div className="generating-indicator">
+          <span className="spinner"></span>
+          <span>AI 生成中...</span>
+        </div>
       )}
     </div>
   );

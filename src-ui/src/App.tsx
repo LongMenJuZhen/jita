@@ -16,6 +16,7 @@ function App() {
     openSettings,
     updateSettings,
     setUvAvailable,
+    asrActive,
   } = useAppStore();
 
   useTauriEvents();
@@ -57,6 +58,14 @@ function App() {
     }
   };
 
+  const getStatusIcon = () => {
+    if (asrActive) return '🎤';
+    if (currentState === 'generating') return '✨';
+    if (statusText?.includes('成功')) return '✓';
+    if (statusText?.includes('失败') || statusText?.includes('错误')) return '✗';
+    return '·';
+  };
+
   return (
     <div className="app">
       {!uvAvailable && (
@@ -67,7 +76,7 @@ function App() {
 
       <div className="header">
         <button className="settings-btn" onClick={openSettings}>
-          设置
+          ⚙ 设置
         </button>
       </div>
 
@@ -75,7 +84,11 @@ function App() {
         {isSettingsVisible ? <Settings /> : renderMainContent()}
       </div>
 
-      {statusText && <div className="status-bar">{statusText}</div>}
+      {statusText && (
+        <div className="status-bar">
+          <span>{getStatusIcon()}</span> {statusText}
+        </div>
+      )}
     </div>
   );
 }
