@@ -1,6 +1,18 @@
 import { create } from 'zustand';
 import type { Script, AppSettings, WindowState } from '../types';
 
+interface OutputLine {
+  type: 'stdout' | 'stderr';
+  content: string;
+}
+
+interface ExecutionOutput {
+  id: string;
+  taskId: string;
+  lines: OutputLine[];
+  exitCode: number | null;
+}
+
 interface AppState {
   // 状态
   currentState: WindowState;
@@ -12,6 +24,9 @@ interface AppState {
   // 执行状态
   isExecuting: boolean;
   runningTaskId: string;
+
+  // 执行输出列表
+  executionOutputs: ExecutionOutput[];
 
   // 参数
   params: Record<string, string>;
@@ -42,6 +57,10 @@ interface AppState {
   updateSettings: (settings: Partial<AppSettings>) => void;
   setUvAvailable: (available: boolean) => void;
   setInputText: (text: string) => void;
+  addExecutionOutput: (taskId: string) => string;
+  appendOutputLine: (taskId: string, line: OutputLine) => void;
+  setOutputExitCode: (taskId: string, exitCode: number | null) => void;
+  clearExecutionOutputs: () => void;
   reset: () => void;
 }
 
@@ -51,6 +70,7 @@ const initialState = {
   scriptContent: '',
   isExecuting: false,
   runningTaskId: '',
+  executionOutputs: [] as ExecutionOutput[],
   params: {},
   asrActive: false,
   settings: {
@@ -103,6 +123,28 @@ export const useAppStore = create<AppState>((set) => ({
   setUvAvailable: (available) => set({ uvAvailable: available }),
 
   setInputText: (text) => set({ inputText: text }),
+
+  addExecutionOutput: (taskId) => {
+    const id = `output-${Date.now()}`;
+    set((state) => ({
+      executionOutputs: [...state.executionOutputs, { id, taskId, lines: [], exitCode: null }],
+    }));
+    return id;
+  },
+
+  appendOutputLine: (taskId, line) => set((state) => ({
+    executionOutputs: state.executionOutputs.map((o) =>
+      o.taskId === taskId ? { ...o, lines: [...o.lines, line] } : o
+    ),
+  })),
+
+  setOutputExitCode: (taskId, exitCode) => set((state) => ({
+    executionOutputs: state.executionOutputs.map((o) =>
+      o.taskId === taskId ? { ...o, exitCode } : o
+    ),
+  })),
+
+  clearExecutionOutputs: () => set({ executionOutputs: [] }),
 
   reset: () => set(initialState),
 }));

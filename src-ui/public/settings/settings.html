@@ -136,6 +136,17 @@
         color: var(--text-primary);
       }
 
+      .link-btn {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .link-btn:hover {
+        text-decoration: underline;
+      }
+
       .actions {
         display: flex;
         gap: 12px;
@@ -232,10 +243,7 @@
 
       <div class="settings-row">
         <label id="asr-label">ASR Model Path</label>
-        <div class="input-row">
-          <input type="text" id="asr-model" readonly placeholder="Click Open" />
-          <button class="btn-small" id="btn-open">Open</button>
-        </div>
+        <a href="#" id="btn-open" class="link-btn">打开模型文件夹</a>
       </div>
 
       <div class="actions">
@@ -247,7 +255,7 @@
     <div class="toast" id="toast"></div>
 
     <script type="module">
-      import { invoke } from 'https://unpkg.com/@tauri-apps/api@2.0.0/core/dist/window.mjs';
+      const invoke = window.__TAURI__.core.invoke;
 
       const translations = {
         zh: {
@@ -259,7 +267,7 @@
           asrLabel: 'ASR 模型路径',
           save: '保存',
           cancel: '取消',
-          open: '打开',
+          openModelsFolder: '打开模型文件夹',
           success: '保存成功',
           placeholder: '可选',
         },
@@ -272,7 +280,7 @@
           asrLabel: 'ASR Model Path',
           save: 'Save',
           cancel: 'Cancel',
-          open: 'Open',
+          openModelsFolder: 'Open Models Folder',
           success: 'Saved successfully',
           placeholder: 'Optional',
         },
@@ -285,7 +293,7 @@
           asrLabel: 'ASR モデルパス',
           save: '保存',
           cancel: 'キャンセル',
-          open: '開く',
+          openModelsFolder: 'モデルフォルダを開く',
           success: '保存しました',
           placeholder: 'オプション',
         }
@@ -307,7 +315,7 @@
         document.getElementById('asr-label').textContent = t.asrLabel;
         document.getElementById('btn-save').textContent = t.save;
         document.getElementById('btn-cancel').textContent = t.cancel;
-        document.getElementById('btn-open').textContent = t.open;
+        document.getElementById('btn-open').textContent = t.openModelsFolder;
         document.getElementById('api-base').placeholder = t.placeholder;
 
         document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -326,7 +334,13 @@
       // Load settings from backend
       async function loadSettings() {
         try {
+          if (!invoke) {
+            console.error('invoke not available');
+            return;
+          }
+          console.log('Loading settings...');
           const result = await invoke('get_settings');
+          console.log('Settings result:', result);
           if (result) {
             document.getElementById('api-key').value = result.api_key || '';
             document.getElementById('api-base').value = result.api_base || '';
@@ -344,6 +358,7 @@
             api_key: document.getElementById('api-key').value,
             api_base: document.getElementById('api-base').value || undefined,
             model: document.getElementById('model').value,
+            language: currentLang,
             hotkey: 'ctrl+space',
             asr_enabled: true,
             asr_model_path: undefined
@@ -367,13 +382,19 @@
         }
       }
 
+      // Close window
+      function closeWindow() {
+        const { getCurrentWindow } = window.__TAURI__.window;
+        getCurrentWindow().close();
+      }
+
       // Event listeners
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => updateLanguage(btn.dataset.lang));
       });
 
       document.getElementById('btn-save').addEventListener('click', saveSettings);
-      document.getElementById('btn-cancel').addEventListener('click', () => window.close());
+      document.getElementById('btn-cancel').addEventListener('click', closeWindow);
       document.getElementById('btn-open').addEventListener('click', openModelsFolder);
 
       // Initialize

@@ -38,6 +38,7 @@ export interface AppSettings {
   api_base?: string;
   model: string;
   hotkey: string;
+  language: string;
   asr_enabled: boolean;
   asr_model_path?: string;
 }

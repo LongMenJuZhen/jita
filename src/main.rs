@@ -3,7 +3,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::TrayIconBuilder,
+    Manager,
+};
 use tokio::sync::Mutex;
 
 use jita_lib::agent::AgentModule;
@@ -57,10 +61,45 @@ fn main() {
                 agent_for_indexing.init_tool_indexing().await;
             });
 
+            // 创建系统托盘
+            let show_item = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
+            // 处理主窗口关闭事件 - 隐藏而不是退出
+            let main_window = app.get_webview_window("main").unwrap();
+            let main_window_clone = main_window.clone();
+            main_window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = main_window_clone.hide();
+                }
+            });
+
             tracing::info!("App initialized");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            jita_lib::commands::set_language,
+            jita_lib::commands::get_language,
             jita_lib::commands::generate_script,
             jita_lib::commands::execute_script,
             jita_lib::commands::stop_script,
@@ -69,6 +108,7 @@ fn main() {
             jita_lib::commands::open_models_folder,
             jita_lib::commands::check_uv,
             jita_lib::commands::toggle_asr,
+            jita_lib::commands::preload_asr,
             jita_lib::commands::open_settings_window,
         ])
         .run(tauri::generate_context!())

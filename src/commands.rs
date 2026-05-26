@@ -140,6 +140,7 @@ pub struct SettingsDto {
     pub api_base: Option<String>,
     pub model: String,
     pub hotkey: String,
+    pub language: String,
     pub asr_enabled: bool,
     pub asr_model_path: Option<String>,
 }
@@ -151,6 +152,7 @@ impl From<&AppSettings> for SettingsDto {
             api_base: s.ai.api_base.clone(),
             model: s.ai.model.clone(),
             hotkey: s.hotkey.clone(),
+            language: s.language.clone(),
             asr_enabled: s.asr_enabled,
             asr_model_path: s.asr_model_path.clone(),
         }
@@ -222,7 +224,6 @@ pub async fn execute_script(
             let mut rx = handle.rx;
             let handle_arc = handle.handle.clone();
             let app_for_events = app.clone();
-
             tokio::spawn(async move {
                 while let Some(line) = rx.recv().await {
                     let output = OutputLine {
@@ -289,18 +290,40 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<SettingsDto, Str
 
 #[tauri::command]
 pub async fn save_settings(
+    app: AppHandle,
     state: State<'_, AppState>,
     settings: SettingsDto,
 ) -> Result<(), String> {
     let mut agent = state.agent.lock().await;
+    let language = settings.language.clone();
 
     agent.settings.ai.api_key = settings.api_key;
     agent.settings.ai.api_base = settings.api_base;
     agent.settings.ai.model = settings.model;
-
+    agent.settings.language = language;
     agent.settings.save().map_err(|e| e.to_string())?;
 
+    // Notify renderer of settings change so it can reload i18n
+    let _ = app.emit("settings_changed", &agent.settings.language);
+
     Ok(())
+}
+
+#[tauri::command]
+pub async fn set_language(
+    state: State<'_, AppState>,
+    language: String,
+) -> Result<(), String> {
+    let mut agent = state.agent.lock().await;
+    agent.settings.language = language.clone();
+    agent.settings.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_language(state: State<'_, AppState>) -> Result<String, String> {
+    let agent = state.agent.lock().await;
+    Ok(agent.settings.language.clone())
 }
 
 #[tauri::command]
@@ -341,6 +364,23 @@ pub fn check_uv() -> bool {
 
 #[cfg(feature = "asr")]
 #[tauri::command]
+pub async fn preload_asr(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut asr = state.asr_manager.lock().await;
+
+    if !asr.is_loaded() {
+        let app_for_status = app.clone();
+        asr.preload(move |status| {
+            let _ = app_for_status.emit("asr_status", status);
+        }).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(feature = "asr")]
+#[tauri::command]
 pub async fn toggle_asr(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -373,7 +413,6 @@ pub async fn toggle_asr(
             let _ = app_for_text.emit("asr_text", text);
         },
     ).map_err(|e| e.to_string())?;
-
     Ok(true)
 }
 
@@ -409,7 +448,6 @@ pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
     .center()
     .build()
     .map_err(|e| e.to_string())?;
-
     let _ = settings_window.set_focus();
     Ok(())
 }

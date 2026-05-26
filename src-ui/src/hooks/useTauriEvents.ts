@@ -5,7 +5,8 @@ import type { OutputLine, TaskComplete } from '../types';
 
 export function useTauriEvents() {
   const {
-    appendScriptContent,
+    appendOutputLine,
+    setOutputExitCode,
     setExecuting,
     setStatus,
     setState,
@@ -15,14 +16,21 @@ export function useTauriEvents() {
 
   useEffect(() => {
     const unlistenOutput = listen<OutputLine>('script_output', (event) => {
-      const prefix = event.payload.line_type === 'stdout' ? '' : '[stderr] ';
-      appendScriptContent(prefix + event.payload.content + '\n');
+      if (runningTaskId) {
+        appendOutputLine(runningTaskId, {
+          type: event.payload.line_type as 'stdout' | 'stderr',
+          content: event.payload.content,
+        });
+      }
     });
 
     const unlistenComplete = listen<TaskComplete>('task_complete', (event) => {
       const { exit_code, error, task_id } = event.payload;
 
       if (runningTaskId === task_id) {
+        if (task_id) {
+          setOutputExitCode(task_id, exit_code);
+        }
         setExecuting(false);
         setTaskId('');
 
@@ -33,8 +41,6 @@ export function useTauriEvents() {
         } else {
           setStatus(error || '执行错误');
         }
-
-        setState('input');
       }
     });
 
@@ -59,5 +65,5 @@ export function useTauriEvents() {
       unlistenAsrStatus.then((fn) => fn());
       unlistenAsr.then((fn) => fn());
     };
-  }, [runningTaskId, appendScriptContent, setExecuting, setStatus, setState, setTaskId]);
+  }, [runningTaskId, appendOutputLine, setOutputExitCode, setExecuting, setStatus, setState, setTaskId]);
 }

@@ -525,3 +525,28 @@ body {
   color: var(--text-muted);
   text-align: center;
 }
+
+/* Terminal */
+.terminal-container {
+  background: #1a1a2e;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-top: 16px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.terminal-container .xterm {
+  padding: 8px;
+}
+
+.terminal-container .xterm-viewport {
+  border-radius: var(--radius-sm);
+}
+
+/* Execution Output */
+.execution-output {
+  margin-top: 16px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}

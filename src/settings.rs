@@ -61,7 +61,6 @@ impl AiConfig {
             .ok()
             .or_else(|| settings.get("ai_model").ok().flatten())
             .unwrap_or_else(|| "claude-sonnet-4-6".to_string());
-
         let api_base = std::env::var("JITA_API_BASE")
             .ok()
             .or_else(|| settings.get("ai_api_base").ok().flatten());
@@ -91,6 +90,7 @@ impl AiConfig {
 pub struct AppSettings {
     pub ai: AiConfig,
     pub hotkey: String,
+    pub language: String,
     pub asr_enabled: bool,
     pub asr_model_path: Option<String>,
     pub asr_keep_in_memory: bool,
@@ -102,6 +102,7 @@ impl AppSettings {
         Ok(Self {
             ai: AiConfig::load(settings)?,
             hotkey: settings.get("hotkey")?.unwrap_or_else(|| "Ctrl+Space".to_string()),
+            language: settings.get("language")?.unwrap_or_else(|| "zh".to_string()),
             asr_enabled: settings.get("asr_enabled")?.map(|s| s == "true").unwrap_or(false),
             asr_model_path: settings.get("asr_model_path")?,
             asr_keep_in_memory: settings.get("asr_keep_in_memory")?.map(|s| s == "true").unwrap_or(true),
@@ -124,6 +125,7 @@ impl AppSettings {
     pub fn save_to(&self, settings: &SettingsManager) -> Result<()> {
         self.ai.save(settings)?;
         settings.set("hotkey", &self.hotkey)?;
+        settings.set("language", &self.language)?;
         settings.set("asr_enabled", &self.asr_enabled.to_string())?;
         if let Some(ref path) = self.asr_model_path {
             settings.set("asr_model_path", path)?;
