@@ -43,27 +43,99 @@ pub enum UvStatus {
 
 /// 检查 uv 是否可用及其版本
 pub fn check_uv() -> UvStatus {
-    match std::process::Command::new("uv").arg("--version").output() {
+    // 首先尝试直接调用 uv
+    if let Some(status) = try_find_uv("uv") {
+        return status;
+    }
+
+    // Windows 平台额外检查常见安装路径
+    #[cfg(target_os = "windows")]
+    {
+        // 用户目录下的 .local/bin
+        if let Some(home) = std::env::var_os("USERPROFILE") {
+            let path = std::path::Path::new(&home)
+                .join(".local")
+                .join("bin")
+                .join("uv.exe");
+            if let Some(status) = try_find_uv_at(&path) {
+                return status;
+            }
+        }
+        // LocalAppData 程序目录
+        if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+            let path = std::path::Path::new(&local)
+                .join("Programs")
+                .join("uv")
+                .join("uv.exe");
+            if let Some(status) = try_find_uv_at(&path) {
+                return status;
+            }
+        }
+        // 常见路径：pip 安装到用户目录
+        if let Some(home) = std::env::var_os("USERPROFILE") {
+            let path = std::path::Path::new(&home)
+                .join("AppData")
+                .join("Local")
+                .join("uv")
+                .join("bin")
+                .join("uv.exe");
+            if let Some(status) = try_find_uv_at(&path) {
+                return status;
+            }
+        }
+    }
+
+    UvStatus::Missing
+}
+
+/// 尝试用指定名称执行 uv
+fn try_find_uv(name: &str) -> Option<UvStatus> {
+    match std::process::Command::new(name).arg("--version").output() {
         Ok(out) if out.status.success() => {
             let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            // 提取版本号（取最后一个空格分隔的部分）
             let version_num = version
                 .split_whitespace()
                 .last()
                 .unwrap_or("0.0.0")
                 .to_string();
 
-            // 检查版本是否满足最低要求（0.4.0）
             if is_version_sufficient(&version_num, "0.4.0") {
-                UvStatus::Available(version)
+                Some(UvStatus::Available(version))
             } else {
-                UvStatus::LowVersion {
+                Some(UvStatus::LowVersion {
                     current: version,
                     required: "0.4.0".to_string(),
-                }
+                })
             }
         }
-        _ => UvStatus::Missing,
+        _ => None,
+    }
+}
+
+/// 尝试在指定路径执行 uv
+fn try_find_uv_at(path: &std::path::Path) -> Option<UvStatus> {
+    if !path.exists() {
+        return None;
+    }
+    match std::process::Command::new(path).arg("--version").output() {
+        Ok(out) if out.status.success() => {
+            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let version_num = version
+                .split_whitespace()
+                .last()
+                .unwrap_or("0.0.0")
+                .to_string();
+
+            if is_version_sufficient(&version_num, "0.4.0") {
+                Some(UvStatus::Available(version))
+            } else {
+                Some(UvStatus::LowVersion {
+                    current: version,
+                    required: "0.4.0".to_string(),
+                })
+            }
+        }
+        _ => None,
     }
 }
 
