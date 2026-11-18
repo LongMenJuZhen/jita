@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head><meta charset="utf-8"><title>会话主界面</title><link rel="stylesheet" href="tokens.css"></head>
+<body>
+<div class="window">
+
+  <!-- 侧栏：池、会话、节点 -->
+  <aside class="sidebar">
+    <div class="pool-head">
+      <span class="pool-name">home</span>
+      <span class="meta">池</span>
+      <span class="pool-dots"><span class="dot ok"></span><span class="dot ok"></span><span class="dot idle"></span></span>
+    </div>
+    <button class="btn new-btn">＋ 新会话 <span class="kbd">⌘N</span></button>
+
+    <div class="group-label"><span>需要你处理</span><span>1</span></div>
+    <div class="s-row sel"><span class="dot warn"></span><span class="t">实现 M0 会话日志</span><span class="time">刚刚</span><span class="sub">等你批准 · mac-vm 在跑</span></div>
+
+    <div class="group-label"><span>运行中</span><span>2</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">iroh 打洞实测脚本</span><span class="time">3 分钟</span><span class="sub">pc 在跑</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">整理 env.toml 规范</span><span class="time">12 分钟</span><span class="sub">mac-vm 在跑</span></div>
+
+    <div class="group-label"><span>最近</span></div>
+    <div class="s-row"><span class="dot idle"></span><span class="t">调研 workers-rs 的 DO 支持</span><span class="time">昨天</span></div>
+    <div class="s-row"><span class="dot idle"></span><span class="t">goose-agent 接管语义实验</span><span class="time">周一</span></div>
+    <div class="s-row"><span class="dot warn"></span><span class="t">快照性能基准</span><span class="time">周一</span><span class="sub">已分叉 · 待你决定</span></div>
+
+    <div class="spacer"></div>
+    <div class="node-mini">
+      <div class="r"><span class="dot ok"></span>mac-vm<span class="meta">2 个会话</span></div>
+      <div class="r"><span class="dot ok"></span>pc<span class="meta">1 个会话</span></div>
+      <div class="r"><span class="dot idle"></span><span class="muted">nas</span><span class="meta">离线 3 小时</span></div>
+    </div>
+  </aside>
+
+  <!-- 主区 -->
+  <main class="main">
+    <header class="s-head">
+      <span class="title">实现 M0 会话日志</span>
+      <span class="chip"><span class="dot ok"></span><b>mac-vm</b> 在跑 · epoch 3</span>
+      <span class="chip ok">热备 pc 已同步</span>
+      <span class="grow"></span>
+      <button class="btn ghost">交接到…</button>
+      <button class="btn">停止 <span class="kbd">⌘.</span></button>
+    </header>
+
+    <section class="thread">
+      <div class="col">
+        <div class="msg-user">给 harnessd 加会话日志：只追加，每条记录带 seq 和 epoch，用 redb 存。写完跑测试，没问题就推到 <code>m0-log</code> 分支。</div>
+
+        <div class="msg-agent">
+          <p>先看一下现有的 crate 结构，再按 <code>docs/02-session-and-failover.md</code> 里的记录格式实现。</p>
+        </div>
+
+        <div class="tools">
+          <div class="tool"><span class="ico">✓</span><span class="name">read</span><span class="arg">docs/02-session-and-failover.md</span><span class="res">182 行</span></div>
+          <div class="tool"><span class="ico">✓</span><span class="name">write</span><span class="arg">crates/harnessd/src/log.rs</span><span class="res">+214</span></div>
+          <div class="tool"><span class="ico">✓</span><span class="name">edit</span><span class="arg">crates/harnessd/src/lib.rs</span><span class="res">+3 −1</span></div>
+          <div class="tool open"><span class="ico">✓</span><span class="name">bash</span><span class="arg">cargo test -p harnessd log::</span><span class="res">3.2 秒</span></div>
+          <div class="tool-out">running 6 tests
+test log::tests::append_assigns_monotonic_seq ... <span class="ok">ok</span>
+test log::tests::rejects_stale_epoch ... <span class="ok">ok</span>
+test log::tests::reopen_after_crash_keeps_committed ... <span class="ok">ok</span>
+test log::tests::batch_is_atomic ... <span class="ok">ok</span>
+test result: <span class="ok">ok</span>. 6 passed; 0 failed</div>
+        </div>
+
+        <div class="msg-agent">
+          <p>6 个测试都过了。<code>rejects_stale_epoch</code> 覆盖了旧 driver 回来写入的情况。接下来推送分支。</p>
+        </div>
+
+        <div class="approval">
+          <div class="h"><span class="tag ext">外部 · 可核对</span>agent 想推送分支</div>
+          <div class="cmd">git push -u origin m0-log</div>
+          <div class="why">3 个提交，改动 2 个文件。意图已记录在 seq 1043；替补后会先查远端，不会重复推送。</div>
+          <div class="acts">
+            <button class="btn primary">批准 <span class="kbd">A</span></button>
+            <button class="btn">拒绝 <span class="kbd">R</span></button>
+            <button class="btn ghost">看改动</button>
+            <span class="meta">热备已确认 seq 1042</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="composer">
+      <div class="box">
+        <div class="ph">纠正、补充，或者让它做下一件事…</div>
+        <div class="bar">
+          <button class="btn ghost sm">＋ 文件</button>
+          <span class="grow"></span>
+          <span class="meta">发送 <span class="kbd">⌘↵</span></span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 检查器 -->
+  <aside class="inspector">
+    <nav class="tabs">
+      <span class="tab on">节点</span>
+      <span class="tab">工作区 <span class="n">2</span></span>
+      <span class="tab">浏览器 <span class="n">1</span></span>
+      <span class="tab">日志</span>
+    </nav>
+    <div class="pane">
+      <div>
+        <div class="sec-label"><span>副本</span><span>driver seq 1043</span></div>
+        <div class="card lanes">
+          <div class="lane"><span class="who"><span class="dot ok"></span>mac-vm</span><span class="bar"><i style="width:100%"></i></span><span class="v">1043</span></div>
+          <div class="lane"><span class="who"><span class="dot standby"></span>pc</span><span class="bar"><i style="width:99.9%"></i></span><span class="v">1042</span></div>
+          <div class="lane"><span class="who"><span class="dot idle"></span><span class="muted">nas</span></span><span class="bar"><i class="lag" style="width:72%"></i></span><span class="v">离线</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-label"><span>最近检查点</span><span>12 秒前</span></div>
+        <dl class="card kv">
+          <dt>seq</dt><dd class="mono">1042</dd>
+          <dt>工作区</dt><dd class="mono">a3f9c1e</dd>
+          <dt>浏览器状态</dt><dd class="mono">未变化</dd>
+          <dt>分支</dt><dd class="mono">m0-log</dd>
+        </dl>
+      </div>
+
+      <div>
+        <div class="sec-label"><span>租约</span></div>
+        <dl class="card kv">
+          <dt>持有者</dt><dd>mac-vm</dd>
+          <dt>epoch</dt><dd class="mono">3</dd>
+          <dt>上次续约</dt><dd>2 秒前</dd>
+          <dt>若 mac-vm 掉线</dt><dd>pc 接管</dd>
+        </dl>
+      </div>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

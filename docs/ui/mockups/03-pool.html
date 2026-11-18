@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head><meta charset="utf-8"><title>池概览</title><link rel="stylesheet" href="tokens.css">
+<style>
+  .pool { padding: var(--s5) var(--s6); display: grid; gap: var(--s5); align-content: start; max-width: 1100px; }
+  .ph { display: flex; align-items: baseline; gap: var(--s3); }
+  .ph h1 { font-size: var(--fs-display); font-weight: 600; }
+  .ph .grow { flex: 1; }
+  .pair { border: 1px solid var(--accent); background: linear-gradient(var(--accent-weak), var(--accent-weak)), var(--bg-raised); border-radius: var(--r-card); padding: var(--s4) var(--s5); display: grid; grid-template-columns: 1fr auto; gap: var(--s4); align-items: center; }
+  .pair .h { font-weight: 600; font-size: var(--fs-title); }
+  .pair .code { font-family: var(--font-mono); font-size: 28px; font-weight: 600; letter-spacing: 0.12em; }
+  .pair .fp { font-family: var(--font-mono); font-size: 12px; color: var(--text-2); }
+  .pair .acts { display: flex; gap: var(--s2); }
+  .nodes { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s4); }
+  .node { padding: var(--s4); display: grid; gap: var(--s3); }
+  .node .top { display: flex; align-items: center; gap: var(--s2); }
+  .node .nm { font-weight: 600; font-size: var(--fs-title); }
+  .node .top .chip { margin-left: auto; }
+  .specs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .spec { font-size: var(--fs-meta); color: var(--text-2); background: var(--bg-window); border-radius: 4px; padding: 1px 7px; }
+  .node .rows { display: grid; gap: 4px; font-size: var(--fs-small); }
+  .node .rows .r { display: flex; gap: var(--s2); align-items: center; }
+  .node .rows .r .meta { margin-left: auto; }
+  .node.off { opacity: .72; }
+  .foot { display: flex; gap: var(--s5); font-size: var(--fs-small); color: var(--text-2); padding-top: var(--s2); border-top: 1px solid var(--border); }
+  .foot b { color: var(--text-1); font-weight: 500; }
+</style></head>
+<body>
+<div class="window no-inspector">
+
+  <aside class="sidebar">
+    <div class="pool-head">
+      <span class="pool-name">home</span>
+      <span class="meta">池</span>
+      <span class="pool-dots"><span class="dot ok"></span><span class="dot ok"></span><span class="dot idle"></span></span>
+    </div>
+    <button class="btn new-btn">＋ 新会话 <span class="kbd">⌘N</span></button>
+    <div class="group-label"><span>需要你处理</span><span>2</span></div>
+    <div class="s-row sel"><span class="dot accent"></span><span class="t">新节点申请入池</span><span class="time">刚刚</span><span class="sub">laptop-xps</span></div>
+    <div class="s-row"><span class="dot warn"></span><span class="t">快照性能基准</span><span class="time">周一</span><span class="sub">已分叉 · 待你决定</span></div>
+    <div class="group-label"><span>运行中</span><span>3</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">实现 M0 会话日志</span><span class="time">刚刚</span><span class="sub">mac-vm 在跑</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">iroh 打洞实测脚本</span><span class="time">4 分钟</span><span class="sub">pc 在跑</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">整理 env.toml 规范</span><span class="time">12 分钟</span><span class="sub">mac-vm 在跑</span></div>
+    <div class="spacer"></div>
+    <div class="node-mini">
+      <div class="r"><span class="dot ok"></span>mac-vm<span class="meta">2 个会话</span></div>
+      <div class="r"><span class="dot ok"></span>pc<span class="meta">1 个会话</span></div>
+      <div class="r"><span class="dot idle"></span><span class="muted">nas</span><span class="meta">离线 3 小时</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="pool">
+      <div class="ph">
+        <h1>池 home</h1>
+        <span class="chip"><span class="dot ok"></span>coordinator 正常 · 48 ms</span>
+        <span class="grow"></span>
+        <button class="btn">凭据 <span class="kbd">⌘⇧K</span></button>
+        <button class="btn">添加节点</button>
+      </div>
+
+      <div class="pair">
+        <div style="display:grid;gap:6px">
+          <div class="h">laptop-xps 申请入池</div>
+          <div class="muted" style="font-size:12.5px">在那台机器的终端里应该显示同一个配对码。一致才批准；不认识这台机器就拒绝。</div>
+          <div class="fp">公钥指纹 SHA256:9f2c 41ab e07d 3c58 · x86-64 · Ubuntu 24.04</div>
+        </div>
+        <div style="display:grid;gap:10px;justify-items:end">
+          <div class="code">482 913</div>
+          <div class="acts"><button class="btn">拒绝</button><button class="btn primary">配对码一致，批准</button></div>
+        </div>
+      </div>
+
+      <div class="nodes">
+        <div class="card node">
+          <div class="top"><span class="dot ok"></span><span class="nm">mac-vm</span><span class="chip ok">在线</span></div>
+          <div class="specs"><span class="spec">arm64</span><span class="spec">8 核</span><span class="spec">16 GB</span><span class="spec">Lima VM</span></div>
+          <div class="rows">
+            <div class="r"><span class="dot ok"></span>在跑 2 个会话<span class="meta">driver</span></div>
+            <div class="r"><span class="dot standby"></span>热备 1 个会话<span class="meta">同步</span></div>
+          </div>
+          <div class="meta">心跳 1 秒前 · 时钟偏差 +3 ms · 证书 82 天后到期</div>
+        </div>
+
+        <div class="card node">
+          <div class="top"><span class="dot ok"></span><span class="nm">pc</span><span class="chip ok">在线</span></div>
+          <div class="specs"><span class="spec">x86-64</span><span class="spec">16 核</span><span class="spec">64 GB</span><span class="spec">RTX 4070 · 12 GB</span></div>
+          <div class="rows">
+            <div class="r"><span class="dot ok"></span>在跑 1 个会话<span class="meta">driver</span></div>
+            <div class="r"><span class="dot standby"></span>热备 2 个会话<span class="meta">同步</span></div>
+          </div>
+          <div class="meta">心跳 2 秒前 · 时钟偏差 −1 ms · 证书 82 天后到期</div>
+        </div>
+
+        <div class="card node off">
+          <div class="top"><span class="dot idle"></span><span class="nm">nas</span><span class="chip">离线 3 小时</span></div>
+          <div class="specs"><span class="spec">x86-64</span><span class="spec">4 核</span><span class="spec">8 GB</span></div>
+          <div class="rows">
+            <div class="r"><span class="dot idle"></span>热备 1 个会话<span class="meta" style="color:var(--warn)">落后 292</span></div>
+          </div>
+          <div class="meta">上线后自动追平 · <span style="color:var(--danger)">移除节点…</span></div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <span>客户端 <b>这台 MacBook</b> · iroh 直连</span>
+        <span>凭据 <b>6 条</b> · DEK 第 3 版</span>
+        <span>浏览器登录 <b>4 个站点</b></span>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
