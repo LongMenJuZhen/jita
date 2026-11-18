@@ -13,6 +13,7 @@ Jita 把自己的几台机器组成一个 agent 环境池。agent 在池里跑�
 | [浏览器](docs/03-browser.md) | 给 agent 用的浏览器，登录状态跨机器同步 |
 | [环境与凭据](docs/04-environment-and-credentials.md) | 容器环境、节点入池、凭据同步 |
 | [客户端](docs/05-client.md) | 原生桌面客户端与控制面 |
+| [界面设计](docs/09-ui.md) | 客户端的布局、视觉规范、快捷键，附界面稿 |
 | [端侧模型服务](docs/06-local-models.md) | 语音转文字、文字转语音、AI 绘图（MVP 之后） |
 | [里程碑](docs/07-milestones.md) | M0–M5，每步一个可自动化的验收门槛 |
 | [未决问题与风险](docs/08-open-questions.md) | 待验证的技术点和已接受的风险 |

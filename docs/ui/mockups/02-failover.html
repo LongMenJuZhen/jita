@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head><meta charset="utf-8"><title>替补发生后</title><link rel="stylesheet" href="tokens.css">
+<style>
+  .browser { overflow: hidden; }
+  .b-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .b-url { flex: 1; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); background: var(--bg-window); border-radius: 5px; padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .b-view { height: 190px; position: relative; background: #f5f5f3; }
+  .b-view .fake { position: absolute; inset: 0; padding: 22px 26px; display: grid; gap: 10px; align-content: start; opacity: .45; }
+  .fake .l { height: 9px; border-radius: 4px; background: #c9c9c4; }
+  .fake .in { height: 26px; border-radius: 5px; border: 1px solid #c9c9c4; background: #fff; }
+  .b-over { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; background: rgba(17,18,20,.62); text-align: center; }
+  .b-over .h { font-weight: 600; color: #fff; }
+  .b-over .s { font-size: 12px; color: #c9cac5; }
+  .tablist { display: grid; }
+  .tabrow { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; padding: 6px 12px; font-size: var(--fs-small); }
+  .tabrow + .tabrow { border-top: 1px solid var(--border); }
+  .tabrow .u { font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tabrow .okc { color: var(--ok); font-size: 12px; text-align: center; }
+  .tabrow .wc { color: var(--warn); font-size: 12px; text-align: center; }
+</style></head>
+<body>
+<div class="window">
+
+  <aside class="sidebar">
+    <div class="pool-head">
+      <span class="pool-name">home</span>
+      <span class="meta">池</span>
+      <span class="pool-dots"><span class="dot idle"></span><span class="dot ok"></span><span class="dot idle"></span></span>
+    </div>
+    <button class="btn new-btn">＋ 新会话 <span class="kbd">⌘N</span></button>
+
+    <div class="group-label"><span>需要你处理</span><span>1</span></div>
+    <div class="s-row"><span class="dot warn"></span><span class="t">快照性能基准</span><span class="time">周一</span><span class="sub">已分叉 · 待你决定</span></div>
+
+    <div class="group-label"><span>运行中</span><span>3</span></div>
+    <div class="s-row sel"><span class="dot ok"></span><span class="t">实现 M0 会话日志</span><span class="time">刚刚</span><span class="sub">pc 在跑 · 刚接管</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">iroh 打洞实测脚本</span><span class="time">4 分钟</span><span class="sub">pc 在跑</span></div>
+    <div class="s-row"><span class="dot ok"></span><span class="t">整理 env.toml 规范</span><span class="time">刚刚</span><span class="sub">pc 在跑 · 刚接管</span></div>
+
+    <div class="group-label"><span>最近</span></div>
+    <div class="s-row"><span class="dot idle"></span><span class="t">调研 workers-rs 的 DO 支持</span><span class="time">昨天</span></div>
+    <div class="s-row"><span class="dot idle"></span><span class="t">goose-agent 接管语义实验</span><span class="time">周一</span></div>
+
+    <div class="spacer"></div>
+    <div class="node-mini">
+      <div class="r"><span class="dot idle"></span><span class="muted">mac-vm</span><span class="meta">失联 40 秒</span></div>
+      <div class="r"><span class="dot ok"></span>pc<span class="meta">3 个会话</span></div>
+      <div class="r"><span class="dot idle"></span><span class="muted">nas</span><span class="meta">离线 3 小时</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="s-head">
+      <span class="title">实现 M0 会话日志</span>
+      <span class="chip"><span class="dot ok"></span><b>pc</b> 在跑 · epoch 4</span>
+      <span class="chip warn">没有热备</span>
+      <span class="grow"></span>
+      <button class="btn ghost">交接到…</button>
+      <button class="btn">停止 <span class="kbd">⌘.</span></button>
+    </header>
+
+    <section class="thread">
+      <div class="col">
+        <div class="tools">
+          <div class="tool"><span class="ico">✓</span><span class="name">bash</span><span class="arg">cargo test -p harnessd log::</span><span class="res">6 通过 · 3.2 秒</span></div>
+        </div>
+        <div class="msg-agent"><p>6 个测试都过了。接下来推送分支。</p></div>
+        <div class="tools">
+          <div class="tool"><span class="ico">✓</span><span class="name">git push</span><span class="arg">-u origin m0-log</span><span class="res"><span class="tag ext">外部</span>&nbsp; 你已批准 · 意图已记录</span></div>
+        </div>
+
+        <div class="event"><div class="body"><span class="dot accent"></span>14:32 mac-vm 失联 20 秒，pc 接管 · epoch 3 → 4 · 从 seq 1043 继续</div></div>
+
+        <div class="tools">
+          <div class="tool"><span class="ico">✓</span><span class="name">restore</span><span class="arg">工作区 a3f9c1e · 浏览器 3 个标签页</span><span class="res">4.1 秒</span></div>
+          <div class="tool open"><span class="ico">✓</span><span class="name">核对</span><span class="arg">git ls-remote origin m0-log</span><span class="res">0.6 秒</span></div>
+          <div class="tool-out">远端没有 m0-log → 上次推送没有完成，重新执行</div>
+          <div class="tool"><span class="ico">✓</span><span class="name">git push</span><span class="arg">-u origin m0-log</span><span class="res"><span class="tag ext">外部</span>&nbsp; 已完成</span></div>
+        </div>
+
+        <div class="msg-agent">
+          <p>推送进行到一半时 mac-vm 掉线了。我在 pc 上查了远端，分支还不存在，所以重新推送了一次，现在 <code>m0-log</code> 已在远端。</p>
+          <p>浏览器恢复了 3 个标签页，其中 console.example.com 的登录失效了，需要你重新登录一下，我再继续查部署状态。</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="composer">
+      <div class="box">
+        <div class="ph">纠正、补充，或者让它做下一件事…</div>
+        <div class="bar">
+          <button class="btn ghost sm">＋ 文件</button>
+          <span class="grow"></span>
+          <span class="meta">发送 <span class="kbd">⌘↵</span></span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="inspector">
+    <nav class="tabs">
+      <span class="tab">节点</span>
+      <span class="tab">工作区 <span class="n">2</span></span>
+      <span class="tab on">浏览器 <span class="n">3</span></span>
+      <span class="tab">日志</span>
+    </nav>
+    <div class="pane">
+      <div>
+        <div class="sec-label"><span>实时画面</span><span>pc · Chromium</span></div>
+        <div class="card browser">
+          <div class="b-bar"><span class="dot warn"></span><span class="b-url">https://console.example.com/login</span></div>
+          <div class="b-view">
+            <div class="fake"><div class="l" style="width:40%"></div><div class="l" style="width:70%"></div><div class="in"></div><div class="in"></div><div class="l" style="width:30%;height:24px"></div></div>
+            <div class="b-over">
+              <div class="h">登录已失效</div>
+              <div class="s">换了机器后这个站点要求重新登录</div>
+              <button class="btn primary">在这里登录 <span class="kbd">L</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-label"><span>恢复的标签页</span><span>来自检查点 1042</span></div>
+        <div class="card tablist">
+          <div class="tabrow"><span class="okc">✓</span><span class="u">docs.rs/redb/latest/redb</span><span class="meta">已恢复</span></div>
+          <div class="tabrow"><span class="okc">✓</span><span class="u">github.com/…/jita/pull/12</span><span class="meta">已登录</span></div>
+          <div class="tabrow"><span class="wc">!</span><span class="u">console.example.com/login</span><span class="meta" style="color:var(--warn)">需要登录</span></div>
+        </div>
+      </div>
+
+      <div class="meta" style="line-height:1.6">页面会被重新加载，表单里没提交的内容不会保留。登录后状态会同步到池里其他节点。</div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast">
+  <div style="display:flex;align-items:center;gap:8px;font-weight:600"><span class="dot accent"></span>已由 pc 接管</div>
+  <div class="muted" style="font-size:12.5px">实现 M0 会话日志 · 整理 env.toml 规范</div>
+  <div class="meta">mac-vm 失联 20 秒 · 各重做 1 个调用</div>
+</div>
+</body>
+</html>
