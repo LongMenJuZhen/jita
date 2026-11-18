@@ -1,175 +1,32 @@
 # Jita
 
-一个 AI 驱动的脚本生成与执行工具。通过自然语言描述需求，Jita 利用 LLM 自动生成可执行脚本（Python/Shell），并支持参数化执行。
-## 设计哲学
-### 交互友好
-- 多语言，多平台，多模态
-  - 然而，受限于作者目前的设备，我们还是优先的做windows和安卓。
-- 准实时，一定要足够快。
-- 在技术选择时考虑了嵌入式的可能性，虽然短时间里不太会有裸金属的可能
-- 本地偏好，为了更多网络不好的用户，~~也为了更多和你独处的时光~~
+Jita 把自己的几台机器组成一个 agent 环境池。agent 在池里跑起来像在一台机器上；任一台掉线，另一台在约 30 秒内从最近的检查点接着跑。你在原生客户端上随时看进度、下指令。
 
-### 没有独占生态
-- 利用已有的命令行工具，而不是推广自己的插件格式
+> 本仓库目前只有设计文档，代码待按文档重写。上一版实现（Slint 界面的脚本生成工具）在 git 历史里，最后一个提交是 `1a54956`。
 
-### 没有第三条
-## 功能特性
+## 文档
 
-- **自然语言脚本生成**：用中文描述你的需求，AI 自动生成对应脚本
-- **多运行时支持**：Python (PEP 723) 和 Shell 脚本
-- **参数化执行**：脚本支持文本、密码、文件选择、目录选择等丰富参数类型
-- **实时输出流**：执行过程中实时显示 stdout/stderr
-- **历史记录**：所有生成的脚本和执行记录自动保存到本地数据库
-- **系统托盘**：后台运行，托盘图标快速访问
-- **热键支持**：全局快捷键触发
-- **语音输入**：支持 ASR 语音转文字输入（基于 sherpa-onnx）
+| 文档 | 内容 |
+| --- | --- |
+| [概览](docs/01-overview.md) | 目标与非目标、术语、总体架构、组件划分 |
+| [会话与替补](docs/02-session-and-failover.md) | 会话日志与检查点、租约与自动替补、外部副作用与重做 |
+| [浏览器](docs/03-browser.md) | 给 agent 用的浏览器，登录状态跨机器同步 |
+| [环境与凭据](docs/04-environment-and-credentials.md) | 容器环境、节点入池、凭据同步 |
+| [客户端](docs/05-client.md) | 原生桌面客户端与控制面 |
+| [端侧模型服务](docs/06-local-models.md) | 语音转文字、文字转语音、AI 绘图（MVP 之后） |
+| [里程碑](docs/07-milestones.md) | M0–M5，每步一个可自动化的验收门槛 |
+| [未决问题与风险](docs/08-open-questions.md) | 待验证的技术点和已接受的风险 |
 
-## 系统要求
+建议阅读顺序：概览 → 会话与替补 → 里程碑，其余按需。
 
-- Windows 10/11、macOS 或 Linux
-- Rust 工具链（推荐最新稳定版）
-- [uv](https://github.com/astral-sh/uv)（用于执行 Python 脚本）
-- Anthropic API Key 或兼容的 API（用于 LLM 生成）
+## 一句话架构
 
-## 编译运行
+- **coordinator**（Cloudflare Workers + Durable Objects，Rust 编译为 WASM）：只管"谁能写"——租约、节点名册、中继。不存任何会话内容。
+- **harnessd**（每台节点一个 Rust 二进制）：agent 循环（基于 goose 的 GDK）、会话日志、点对点复制、容器、凭据。
+- **客户端**（原生 Rust，egui + wgpu）：作为 iroh 节点直连池里的节点。
 
-### 1. 克隆项目
+会话日志、工作区快照、浏览器状态和凭据密文只在你自己的机器之间点对点同步，不上云。
 
-```bash
-git clone <repository-url>
-cd jita
-```
-
-### 2. 安装系统依赖
-
-**Windows:**
-- 安装 [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio) 或完整的 Visual Studio
-- 确保安装 "C++ CMake tools for Windows"
-
-**macOS:**
-```bash
-xcode-select --install
-brew install cmake portaudio
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt install build-essential cmake libasound2-dev portaudio19-dev
-```
-
-### 3. 安装 Rust
-
-```bash
-# 如果没有安装 Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# 确保更新到最新版本（项目使用 Rust 2024 edition）
-rustup update
-```
-
-### 4. 安装 uv
-
-```bash
-# Windows (PowerShell)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-### 安装mise
-### 安装fd
-```powershell
-winget install sharkdp.fd
-```
-### 5. 编译运行
-
-```bash
-# 编译项目
-cargo build --release
-
-# 运行
-cargo run --release
-```
-
-或者直接使用：
-
-```bash
-cargo run --release
-```
-
-## 配置
-
-首次运行后，在设置界面中配置：
-
-1. **API Key**: 你的 Anthropic API Key（或兼容的 API Key）
-2. **API Base**: API 地址（留空使用默认的 Anthropic API）
-3. **Model**: 使用的模型名称（默认 `claude-sonnet-4-20250514`）
-
-API Key 会安全存储在系统密钥链中（Windows Credential Manager / macOS Keychain / Linux libsecret）。
-
-## 使用流程
-
-1. **输入需求**：在输入框中用自然语言描述你想要完成的脚本功能
-2. **AI 生成**：Jita 调用 LLM 生成脚本，显示在审阅区域
-3. **审阅修改**：查看生成的脚本内容，可选择修改
-4. **执行脚本**：点击执行按钮，实时查看输出结果
-
-## 项目结构
-- `main.rs`应用主入口
-- 
-```
-jita/
-├── src/
-│   ├── main.rs          # 应用入口
-│   ├── app.rs           # 核心应用逻辑
-│   ├── llm.rs           # LLM 客户端
-│   ├── script.rs        # 脚本数据结构
-│   ├── execution.rs     # 脚本执行器
-│   ├── db.rs            # SQLite 数据库
-│   ├── asr.rs           # ASR 语音识别
-│   ├── hotkey.rs        # 热键管理
-│   ├── tray.rs          # 系统托盘
-│   ├── state.rs         # 应用状态
-│   ├── settings.rs      # 设置管理
-│   ├── task_manager.rs  # 任务管理
-│   ├── agent.rs         # AI Agent
-│   ├── embedding.rs     # 向量嵌入
-│   ├── utils.rs         # 工具函数
-│   └── ui/              # UI 模块（Slint）
-├── ui/                  # Slint UI 源文件（.slint）
-├── Cargo.toml           # Rust 项目配置
-├── .cargo/         # Rust 项目配置
-    ├──
-
-
-```
-
-## 技术栈
-
-- **UI**: Slint
-- **LLM**: rig + Anthropic API
-- **Database**: SQLite (rusqlite)
-- **Audio**: sherpa-onnx + cpal
-- **Runtime**: Tokio (异步)
-## 待办（这么多，给我一种做不完的绝望感。）
-- 代码结构整理
-- agent 实现优化
-  - RAG
-  - 环境理解
-
-  
-- 沙盒机制：AI 安全
-- 长期任务：
-  - 命令行启动的服务管理，端口服务统一管理
-  - agent后台任务
-- 本地模型：gemma4看起来很不错，也许后面会用得上。
-- 灵感：
-  - 随时随地，快捷键草稿纸
-  - agent启发
-- vi设计
-  - 也许会有个二次元形象
-- TUI
-- openai api
 ## 许可证
 
-本项目基于 [GPL v3](LICENSE) 许可证开源。
+[GPL v3](LICENSE)

@@ -1,1 +1,0 @@
-https://docs.slint.dev/latest/docs/slint/guide/development/translations/
