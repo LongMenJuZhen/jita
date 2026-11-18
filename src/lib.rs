@@ -1,10 +1,5 @@
 // Jita 库入口
-// 导出所有模块，供 Tauri 使用
+// 导出 deno 模块和 utils
 
-pub mod agent;
-pub mod commands;
-pub mod settings;
-pub mod state;
-pub mod task_manager;
-pub mod ui;
+pub mod deno;
 pub mod utils;

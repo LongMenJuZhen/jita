@@ -1,0 +1,14 @@
+{
+  "lock": false,
+  "tasks": {
+    "dev": "deno run -A --watch main.ts",
+    "start": "deno run -A main.ts"
+  },
+  "imports": {
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk",
+    "sql.js": "npm:sql.js",
+    "memvid": "npm:memvid",
+    "sherpa-js": "npm:sherpa-js"
+  },
+  "vendor": true
+}

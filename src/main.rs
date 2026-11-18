@@ -1,21 +1,15 @@
 // Jita Tauri 应用入口
+// Rust 端只负责：托盘、窗管、全局快捷键、Deno进程管理
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     Manager,
 };
-use tokio::sync::Mutex;
 
-use jita_lib::agent::AgentModule;
-use jita_lib::commands::AppState;
-use jita_lib::settings::AppSettings;
-use jita_lib::task_manager::TaskManager;
-use jita_lib::ui::asr::AsrManager;
-use jita_lib::utils;
+use jita_lib::deno::{start_deno, DenoProcessState};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -27,38 +21,27 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .manage(DenoProcessState::new())
         .setup(|app| {
-            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            // 启动 Deno 后端进程
+            let deno_path = std::env::var("DENO_PATH")
+                .unwrap_or_else(|_| "deno".to_string());
+            let script_path = std::env::current_dir()
+                .unwrap_or_default()
+                .join("jita-deno/main.ts");
 
-            let (agent, uv_available) = {
-                utils::ensure_dirs().ok();
-                let settings = AppSettings::load_from_default().unwrap_or_default();
-                let agent = AgentModule::new(settings).unwrap_or_else(|e| {
-                    tracing::error!("Failed to create AgentModule: {}", e);
-                    panic!("AgentModule creation failed");
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    if let Err(e) = start_deno(
+                        app_handle,
+                        &deno_path,
+                        script_path.to_str().unwrap_or("jita-deno/main.ts"),
+                    ).await {
+                        tracing::error!("Failed to start Deno process: {}", e);
+                    }
                 });
-                let uv_available = matches!(utils::check_uv(), utils::UvStatus::Available(_));
-                (agent, uv_available)
-            };
-
-            let task_manager = TaskManager::new();
-            let asr_manager = AsrManager::new(utils::models_dir());
-
-            let app_state = AppState {
-                agent: Arc::new(Mutex::new(agent)),
-                task_manager: Arc::new(Mutex::new(task_manager)),
-                asr_manager: Arc::new(Mutex::new(asr_manager)),
-                uv_available,
-            };
-
-            app.manage(app_state.clone());
-
-            // 后台初始化工具索引
-            let agent_arc = app_state.agent.clone();
-            rt.spawn(async move {
-                let agent = agent_arc.lock().await;
-                let agent_for_indexing = Arc::new((&*agent).clone());
-                agent_for_indexing.init_tool_indexing().await;
             });
 
             // 创建系统托盘
@@ -98,18 +81,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            jita_lib::commands::set_language,
-            jita_lib::commands::get_language,
-            jita_lib::commands::generate_script,
-            jita_lib::commands::execute_script,
-            jita_lib::commands::stop_script,
-            jita_lib::commands::get_settings,
-            jita_lib::commands::save_settings,
-            jita_lib::commands::open_models_folder,
-            jita_lib::commands::check_uv,
-            jita_lib::commands::toggle_asr,
-            jita_lib::commands::preload_asr,
-            jita_lib::commands::open_settings_window,
+            jita_lib::deno::deno_invoke,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
